@@ -1,6 +1,7 @@
 package com.example.mintline.data.provider
 
 import com.example.mintline.data.FootballCatalog
+import com.example.mintline.data.timezone.TimeZoneManager
 import com.example.mintline.model.Competition
 import com.example.mintline.model.IncidentType
 import com.example.mintline.model.LineupPlayer
@@ -17,6 +18,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
 /**
@@ -36,7 +38,8 @@ class EasySoccerDataEspnClient(
 
     suspend fun fetchScoreboard(
         league: String = "all",
-        dateString: String? = null
+        dateString: String? = null,
+        targetZone: ZoneId = ZoneId.systemDefault()
     ): Result<List<Match>> = withContext(Dispatchers.IO) {
         try {
             val urlBuilder = StringBuilder("$baseUrl/$league/scoreboard")
@@ -62,7 +65,7 @@ class EasySoccerDataEspnClient(
             val matches = mutableListOf<Match>()
             for (i in 0 until eventsArray.length()) {
                 val eventObj = eventsArray.getJSONObject(i)
-                parseEventToMatch(eventObj)?.let { matches.add(it) }
+                parseEventToMatch(eventObj, targetZone)?.let { matches.add(it) }
             }
 
             Result.success(matches)
@@ -73,7 +76,8 @@ class EasySoccerDataEspnClient(
 
     suspend fun fetchMatchSummary(
         eventId: String,
-        league: String = "all"
+        league: String = "all",
+        targetZone: ZoneId = ZoneId.systemDefault()
     ): Result<MatchDetail> = withContext(Dispatchers.IO) {
         try {
             val url = "$baseUrl/$league/summary?event=$eventId"
@@ -90,14 +94,14 @@ class EasySoccerDataEspnClient(
 
             val body = response.body?.string() ?: return@withContext Result.failure(Exception("Empty summary response"))
             val json = JSONObject(body)
-            val matchDetail = parseSummaryToDetail(eventId, json)
+            val matchDetail = parseSummaryToDetail(eventId, json, targetZone)
             Result.success(matchDetail)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    private fun parseEventToMatch(event: JSONObject): Match? {
+    private fun parseEventToMatch(event: JSONObject, targetZone: ZoneId = ZoneId.systemDefault()): Match? {
         val id = event.optString("id")
         val dateIso = event.optString("date")
         val competitions = event.optJSONArray("competitions") ?: return null
@@ -172,8 +176,9 @@ class EasySoccerDataEspnClient(
         val leagueName = known?.name ?: leagueObj?.optString("name")?.takeIf { it.isNotBlank() } ?: "Other competitions"
         val leagueLogo = known?.logoUrl ?: leagueObj?.optJSONArray("logos")?.optJSONObject(0)?.optString("href")
 
-        // Parse formatted kickoff time from ISO string
-        val kickoffFormatted = formatTimeFromIso(dateIso)
+        // Parse formatted kickoff time from ISO string localized to targetZone (Kickoff26 standard)
+        val kickoffFormatted = formatTimeFromIso(dateIso, targetZone)
+        val finalStatusText = if (status == MatchStatus.SCHEDULED) kickoffFormatted else statusText
 
         return Match(
             id = id,
@@ -185,7 +190,7 @@ class EasySoccerDataEspnClient(
             homeScore = homeScore,
             awayScore = awayScore,
             status = status,
-            statusText = statusText,
+            statusText = finalStatusText,
             kickoffFormatted = kickoffFormatted,
             dateIso = dateIso,
             venue = venueName,
@@ -216,7 +221,11 @@ class EasySoccerDataEspnClient(
         )
     }
 
-    private fun parseSummaryToDetail(eventId: String, json: JSONObject): MatchDetail {
+    private fun parseSummaryToDetail(
+        eventId: String,
+        json: JSONObject,
+        targetZone: ZoneId = ZoneId.systemDefault()
+    ): MatchDetail {
         val boxscore = json.optJSONObject("boxscore")
         val header = json.optJSONObject("header")
         val competitions = header?.optJSONArray("competitions")
@@ -331,7 +340,7 @@ class EasySoccerDataEspnClient(
         val venue = gameInfo?.optJSONObject("venue")?.optString("fullName", null)
 
         // ESPN data only: anything ESPN doesn't provide yet (stats, line-ups, events before kick-off) stays empty
-        val finalMatch = header?.let { parseEventToMatch(it) }
+        val finalMatch = header?.let { parseEventToMatch(it, targetZone) }
             ?: throw IllegalStateException("Match summary unavailable")
 
         return MatchDetail(
@@ -383,17 +392,7 @@ class EasySoccerDataEspnClient(
         )
     }
 
-    private fun formatTimeFromIso(isoString: String): String {
-        return try {
-            if (isoString.contains("T")) {
-                val timePart = isoString.substringAfter("T").substringBefore("Z")
-                val parts = timePart.split(":")
-                if (parts.size >= 2) "${parts[0]}:${parts[1]}" else "19:00"
-            } else {
-                "19:00"
-            }
-        } catch (e: Exception) {
-            "19:00"
-        }
+    private fun formatTimeFromIso(isoString: String, targetZone: ZoneId = ZoneId.systemDefault()): String {
+        return TimeZoneManager.formatKickoffTime(isoString, targetZone)
     }
 }

@@ -192,7 +192,7 @@ fun CompactMatchRow(match: Match, onClick: () -> Unit, onToggleFavorite: () -> U
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.width(50.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.width(58.dp), contentAlignment = Alignment.Center) {
             when {
                 match.isLive -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     LiveDot(size = 5.dp)
@@ -217,7 +217,8 @@ fun CompactMatchRow(match: Match, onClick: () -> Unit, onToggleFavorite: () -> U
                     fontWeight = FontWeight.Medium,
                     color = scheme.onSurface,
                     textAlign = TextAlign.Center,
-                    maxLines = 2
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
         }

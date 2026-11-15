@@ -168,6 +168,12 @@ fun MainScreen(
                             lastUpdatedText = state.lastUpdatedText,
                             onClearFavorites = viewModel::clearFavorites,
                             onEditFavorites = viewModel::openOnboarding,
+                            matchNotificationsEnabled = state.matchNotificationsEnabled,
+                            onToggleMatchNotifications = viewModel::setMatchNotifications,
+                            timeZoneLabel = state.timeZoneLabel,
+                            isCustomTimeZone = state.isCustomTimeZone,
+                            onCycleTimeZone = viewModel::cycleTimeZone,
+                            onResetTimeZone = viewModel::resetTimeZoneToDefault,
                             appVersion = state.appVersion,
                             updateLabel = state.updateMessage
                                 ?: state.update?.let { "Version ${it.version} available — tap to install" },

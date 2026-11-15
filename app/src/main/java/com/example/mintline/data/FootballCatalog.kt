@@ -78,6 +78,17 @@ object FootballCatalog {
         LeagueInfo("eng.w.1", "8097", "Women's Super League", "England", "2314", 43, isWomen = true),
         LeagueInfo("usa.nwsl", "8301", "NWSL (Women)", "USA", "2323", 44, isWomen = true),
         LeagueInfo("fifa.friendly.w", "3923", "Women's Friendlies", "World", "70", 45, isWomen = true),
+        // Additional competitions from livescoreFootball (worldcup26.ir)
+        LeagueInfo("eng.3", "3916", "League One", "England", "26", 46),
+        LeagueInfo("eng.4", "3917", "League Two", "England", "27", 47),
+        LeagueInfo("eng.5", "3919", "National League", "England", "104", 48),
+        LeagueInfo("eng.trophy", "3921", "EFL Trophy", "England", "106", 49, isCup = true),
+        LeagueInfo("eng.w.fa", "8098", "Women's FA Cup", "England", "2315", 50, isCup = true, isWomen = true),
+        LeagueInfo("esp.2", "3950", "LALIGA 2", "Spain", "16", 51),
+        LeagueInfo("esp.w.1", "20444", "Liga F", "Spain", "20444", 52, isWomen = true),
+        LeagueInfo("esp.copa_de_la_reina", "20445", "Copa de la Reina", "Spain", "20445", 53, isCup = true, isWomen = true),
+        LeagueInfo("aut.1", "3904", "Austrian Bundesliga", "Austria", "2195", 54),
+        LeagueInfo("jpn.1", "3935", "J.League", "Japan", "59", 55),
     )
 
     private val byEspnId = leagues.associateBy { it.espnId }

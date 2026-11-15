@@ -354,10 +354,10 @@ private fun PlayerToken(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val tokenSize = 34.dp
+    val tokenSize = 25.dp
     val tokenPx = with(LocalDensity.current) { tokenSize.toPx() }
     val selScale by animateFloatAsState(
-        if (selected) 1.18f else 1f, spring(dampingRatio = 0.45f, stiffness = 500f), label = "sel"
+        if (selected) 1.15f else 1f, spring(dampingRatio = 0.45f, stiffness = 500f), label = "sel"
     )
     val p = progress
     val x = from.x + (target.x - from.x) * p
@@ -389,44 +389,44 @@ private fun PlayerToken(
                     .size(tokenSize)
                     .clip(CircleShape)
                     .background(fill)
-                    .border(2.dp, if (selected) Color.White else Color.White.copy(alpha = 0.85f), CircleShape),
+                    .border(1.5.dp, if (selected) Color.White else Color.White.copy(alpha = 0.85f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     player.jersey,
                     color = onFill,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
             if (player.isCaptain) {
                 Box(
                     Modifier
                         .align(Alignment.TopEnd)
-                        .offset(x = 5.dp, y = (-3).dp)
-                        .size(15.dp)
+                        .offset(x = 4.dp, y = (-2).dp)
+                        .size(12.dp)
                         .clip(CircleShape)
                         .background(Mint.colors.gold)
                         .border(1.dp, Color.White, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("C", fontSize = 8.sp, fontWeight = FontWeight.Medium, color = Color(0xFF3A2A00))
+                    Text("C", fontSize = 7.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3A2A00))
                 }
             }
         }
-        Spacer(Modifier.height(3.dp))
+        Spacer(Modifier.height(2.dp))
         Text(
             surname(player.name),
             color = Color.White,
-            fontSize = 10.sp,
+            fontSize = 8.5.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
-                .widthIn(max = 78.dp)
+                .widthIn(max = 56.dp)
                 .clip(RoundedCornerShape(50))
-                .background(Color.Black.copy(alpha = 0.32f))
-                .padding(horizontal = 6.dp, vertical = 1.dp)
+                .background(Color.Black.copy(alpha = 0.40f))
+                .padding(horizontal = 4.dp, vertical = 1.dp)
         )
     }
 }

@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.mintline"
         minSdk = 24
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
 
     // Release signing: credentials live in keystore.properties (git-ignored), not in this file.
@@ -41,6 +41,7 @@ android {
         }
     }
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -63,6 +64,7 @@ kotlin {
 }
 
 dependencies {
+  coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
   val composeBom = platform(libs.androidx.compose.bom)
   implementation(composeBom)
   androidTestImplementation(composeBom)

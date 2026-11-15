@@ -9,6 +9,8 @@ import com.example.mintline.data.UpdateInfo
 import com.example.mintline.data.FootballCatalog
 import com.example.mintline.data.DefaultFootballDataRepository
 import com.example.mintline.data.FootballDataRepository
+import com.example.mintline.data.timezone.TimeZoneManager
+import com.example.mintline.data.timezone.TimeZoneManager.Companion.toDisplayLabel
 import com.example.mintline.model.Competition
 import com.example.mintline.model.DateItem
 import com.example.mintline.model.FavoriteType
@@ -24,7 +26,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -51,6 +55,9 @@ data class MintlineUiState(
     val isLoadingDetail: Boolean = false,
     val favoriteTeamIds: Set<String> = emptySet(),
     val showOnboarding: Boolean = false,
+    val timeZoneLabel: String = "",
+    val isCustomTimeZone: Boolean = false,
+    val matchNotificationsEnabled: Boolean = true,
     val appVersion: String = "",
     val update: UpdateInfo? = null,
     val updateDismissed: Boolean = false,
@@ -153,8 +160,8 @@ class MainScreenViewModel(
     private val updater = AppUpdater(application)
     private val prefs = application.getSharedPreferences("mintline_prefs", android.content.Context.MODE_PRIVATE)
 
-    private val calendar = Calendar.getInstance()
-    private val dateItems = generateDateList()
+    private val initialZone = repository.timeZoneManager.timeZone.value
+    private val dateItems = generateDateList(initialZone)
     private val initialDate = dateItems.find { it.isToday } ?: dateItems[3]
 
     private val _uiState = MutableStateFlow(
@@ -167,6 +174,9 @@ class MainScreenViewModel(
             reducedMotion = prefs.getBoolean("reduced_motion", false),
             favoriteTeamIds = repository.favorites.value.teamIds,
             showOnboarding = !prefs.getBoolean("onboarding_done", false),
+            timeZoneLabel = initialZone.toDisplayLabel(),
+            isCustomTimeZone = repository.timeZoneManager.isCustomZone.value,
+            matchNotificationsEnabled = prefs.getBoolean("match_notifications", true),
             appVersion = updater.currentVersion
         )
     )
@@ -178,6 +188,25 @@ class MainScreenViewModel(
         checkForUpdates(manual = false)
         loadData()
         startAutoRefresh()
+
+        // Observe timezone changes
+        viewModelScope.launch {
+            repository.timeZoneManager.timeZone.collect { zone ->
+                val newDates = generateDateList(zone)
+                val newSel = newDates.find { it.dateString == _uiState.value.selectedDate.dateString }
+                    ?: newDates.find { it.isToday }
+                    ?: newDates[3]
+                _uiState.update {
+                    it.copy(
+                        timeZoneLabel = zone.toDisplayLabel(),
+                        isCustomTimeZone = repository.timeZoneManager.isCustomZone.value,
+                        dateList = newDates,
+                        selectedDate = newSel
+                    )
+                }
+                loadData(isUserAction = true)
+            }
+        }
 
         // Observe repository state
         viewModelScope.launch {
@@ -220,29 +249,52 @@ class MainScreenViewModel(
         }
     }
 
-    private fun generateDateList(): List<DateItem> {
+    private fun generateDateList(zoneId: ZoneId = repository.timeZoneManager.timeZone.value): List<DateItem> {
         val list = mutableListOf<DateItem>()
-        val cal = Calendar.getInstance()
-        val dayFormat = SimpleDateFormat("EEE", Locale.ENGLISH)
-        val numFormat = SimpleDateFormat("d", Locale.ENGLISH)
-        val isoFormat = SimpleDateFormat("yyyyMMdd", Locale.ENGLISH)
+        val today = LocalDate.now(zoneId)
+        val dayFormat = DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH)
+        val numFormat = DateTimeFormatter.ofPattern("d", Locale.ENGLISH)
+        val isoFormat = DateTimeFormatter.ofPattern("yyyyMMdd", Locale.ENGLISH)
 
-        // Generate 3 days before today, today, and 3 days after today
+        // Generate 10 days before today, today, and 10 days after today
         for (i in -10..10) {
-            val c = Calendar.getInstance()
-            c.add(Calendar.DAY_OF_YEAR, i)
+            val d = today.plusDays(i.toLong())
             val isToday = i == 0
             list.add(
                 DateItem(
-                    dateString = isoFormat.format(c.time),
-                    dayOfWeek = dayFormat.format(c.time),
-                    dayOfMonth = numFormat.format(c.time),
+                    dateString = d.format(isoFormat),
+                    dayOfWeek = d.format(dayFormat),
+                    dayOfMonth = d.format(numFormat),
                     isToday = isToday,
                     isSelected = isToday
                 )
             )
         }
         return list
+    }
+
+    fun cycleTimeZone() {
+        val current = repository.timeZoneManager.timeZone.value
+        val zones = TimeZoneManager.POPULAR_ZONES
+        val idx = zones.indexOf(current)
+        if (idx == -1) {
+            // Switch from device default to first popular zone (UTC)
+            repository.timeZoneManager.setTimeZone(zones[0])
+        } else if (idx == zones.lastIndex) {
+            // After cycling through all, return to device default
+            repository.timeZoneManager.resetToDeviceDefault()
+        } else {
+            repository.timeZoneManager.setTimeZone(zones[idx + 1])
+        }
+    }
+
+    fun resetTimeZoneToDefault() {
+        repository.timeZoneManager.resetToDeviceDefault()
+    }
+
+    fun setMatchNotifications(enabled: Boolean) {
+        prefs.edit().putBoolean("match_notifications", enabled).apply()
+        _uiState.update { it.copy(matchNotificationsEnabled = enabled) }
     }
 
     fun selectTab(tab: MintlineTab) {

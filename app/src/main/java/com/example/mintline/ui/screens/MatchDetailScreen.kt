@@ -272,7 +272,13 @@ private fun DetailHeroCard(detail: MatchDetail, modifier: Modifier = Modifier) {
                             AnimatedScore(match.awayScore, mint.onHero)
                         }
                     } else {
-                        Text(match.kickoffFormatted, style = MaterialTheme.typography.headlineLarge, color = mint.onHero)
+                        Text(
+                            match.kickoffFormatted,
+                            style = MaterialTheme.typography.headlineLarge,
+                            color = mint.onHero,
+                            maxLines = 1,
+                            softWrap = false
+                        )
                     }
                     if (match.isLive) {
                         Text(

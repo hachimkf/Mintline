@@ -3,11 +3,17 @@ package com.example.mintline.data
 import android.content.Context
 import com.example.mintline.data.provider.DemoDataProvider
 import com.example.mintline.data.provider.EasySoccerDataEspnClient
+import com.example.mintline.data.provider.LivescoreFootballClient
+import com.example.mintline.data.timezone.TimeZoneManager
 import com.example.mintline.model.Competition
 import com.example.mintline.model.FavoriteType
 import com.example.mintline.model.Match
 import com.example.mintline.model.MatchDetail
 import com.example.mintline.model.MatchStatus
+import com.example.mintline.model.StandingRow
+import com.example.mintline.model.StandingsCalculator
+import com.example.mintline.notifications.MatchNotificationManager
+import com.example.mintline.widget.MintlineWidgetProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +28,7 @@ interface FootballDataRepository {
     val activeProvider: StateFlow<DataProviderType>
     val lastUpdatedTimestamp: StateFlow<Long>
     val favorites: StateFlow<FavoritesData>
+    val timeZoneManager: TimeZoneManager
 
     fun setProvider(providerType: DataProviderType)
     fun addFavorites(leagueIds: Set<String>, teamIds: Set<String>)
@@ -33,6 +40,7 @@ interface FootballDataRepository {
     suspend fun getLiveMatches(): Result<List<Match>>
     suspend fun getMatchDetail(matchId: String, leagueId: String = "all"): Result<MatchDetail>
     fun getCompetitions(): List<Competition>
+    fun getStandings(leagueId: String): List<StandingRow>
 
     fun isFavorite(id: String, type: FavoriteType): Boolean
     fun toggleFavorite(id: String, type: FavoriteType): Boolean
@@ -42,7 +50,9 @@ interface FootballDataRepository {
 class DefaultFootballDataRepository(
     private val context: Context,
     private val espnClient: EasySoccerDataEspnClient = EasySoccerDataEspnClient(),
-    private val favoritesManager: FavoritesManager = FavoritesManager(context)
+    private val livescoreClient: LivescoreFootballClient = LivescoreFootballClient(),
+    private val favoritesManager: FavoritesManager = FavoritesManager(context),
+    override val timeZoneManager: TimeZoneManager = TimeZoneManager(context)
 ) : FootballDataRepository {
 
     private val _activeProvider = MutableStateFlow(DataProviderType.EASY_SOCCER_DATA_ESPN)
@@ -64,7 +74,8 @@ class DefaultFootballDataRepository(
         dateString: String?,
         competitionId: String?
     ): Result<List<Match>> {
-        val cacheKey = "${dateString ?: "today"}_${competitionId ?: "all"}"
+        val targetZone = timeZoneManager.timeZone.value
+        val cacheKey = "${dateString ?: "today"}_${competitionId ?: "all"}_${targetZone.id}"
 
         if (_activeProvider.value == DataProviderType.DEMO_MODE) {
             _lastUpdatedTimestamp.value = System.currentTimeMillis()
@@ -77,15 +88,29 @@ class DefaultFootballDataRepository(
             val enriched = demoList.map { m ->
                 m.copy(isFavorite = favs.matchIds.contains(m.id) || favs.teamIds.contains(m.homeTeam.id) || favs.teamIds.contains(m.awayTeam.id))
             }
+            MintlineWidgetProvider.updateAllWidgets(context, enriched)
             return Result.success(enriched)
         }
 
         // Live EasySoccerData Provider
         val leagueParam = if (!competitionId.isNullOrBlank() && competitionId != "all") competitionId else "all"
-        val liveResult = espnClient.fetchScoreboard(league = leagueParam, dateString = dateString)
+        val liveResult = espnClient.fetchScoreboard(league = leagueParam, dateString = dateString, targetZone = targetZone)
 
-        return if (liveResult.isSuccess) {
-            val rawMatches = liveResult.getOrNull() ?: emptyList()
+        val rawMatches = if (liveResult.isSuccess && !liveResult.getOrNull().isNullOrEmpty()) {
+            liveResult.getOrNull()!!
+        } else if (!competitionId.isNullOrBlank() && competitionId != "all") {
+            // Secondary provider fallback via livescoreFootball (worldcup26.ir/get/soccer)
+            val fallbackScoreboard = livescoreClient.fetchScoreboard(competitionId, dateString, targetZone)
+            if (fallbackScoreboard.isSuccess && !fallbackScoreboard.getOrNull().isNullOrEmpty()) {
+                fallbackScoreboard.getOrNull()!!
+            } else {
+                livescoreClient.fetchFixtures(competitionId, targetZone).getOrElse { emptyList() }
+            }
+        } else {
+            liveResult.getOrNull() ?: emptyList()
+        }
+
+        return if (rawMatches.isNotEmpty() || liveResult.isSuccess) {
             val list = rawMatches
 
             _lastUpdatedTimestamp.value = System.currentTimeMillis()
@@ -95,6 +120,7 @@ class DefaultFootballDataRepository(
             val enriched = list.map { m ->
                 m.copy(isFavorite = favs.matchIds.contains(m.id) || favs.teamIds.contains(m.homeTeam.id) || favs.teamIds.contains(m.awayTeam.id))
             }
+            MintlineWidgetProvider.updateAllWidgets(context, enriched)
             Result.success(enriched)
         } else {
             // Check cache or fallback to demo
@@ -103,7 +129,6 @@ class DefaultFootballDataRepository(
             val enriched = fallback.map { m ->
                 m.copy(isFavorite = favs.matchIds.contains(m.id) || favs.teamIds.contains(m.homeTeam.id) || favs.teamIds.contains(m.awayTeam.id))
             }
-            // Return failure with fallback available in repository
             Result.failure(liveResult.exceptionOrNull() ?: Exception("Failed to fetch matches"))
         }
     }
@@ -123,8 +148,9 @@ class DefaultFootballDataRepository(
             return Result.success(DemoDataProvider.getDemoMatchDetail(matchId))
         }
 
+        val targetZone = timeZoneManager.timeZone.value
         val league = if (FootballCatalog.leagueBySlug(leagueId) != null) leagueId else "all"
-        val result = espnClient.fetchMatchSummary(eventId = matchId, league = league)
+        val result = espnClient.fetchMatchSummary(eventId = matchId, league = league, targetZone = targetZone)
         return result
     }
 
@@ -135,12 +161,31 @@ class DefaultFootballDataRepository(
         }
     }
 
+    override fun getStandings(leagueId: String): List<StandingRow> {
+        val matches = cachedMatches.values.flatten().filter { it.leagueId == leagueId }
+            .ifEmpty {
+                DemoDataProvider.getDemoMatches().filter { it.leagueId == leagueId }
+            }
+        return StandingsCalculator.compute(matches)
+    }
+
     override fun isFavorite(id: String, type: FavoriteType): Boolean {
         return favoritesManager.isFavorite(id, type)
     }
 
     override fun toggleFavorite(id: String, type: FavoriteType): Boolean {
-        return favoritesManager.toggleFavorite(id, type)
+        val isNowFav = favoritesManager.toggleFavorite(id, type)
+        if (type == FavoriteType.MATCH) {
+            val match = cachedMatches.values.flatten().find { it.id == id }
+            if (match != null) {
+                if (isNowFav) {
+                    MatchNotificationManager.scheduleMatchReminder(context, match)
+                } else {
+                    MatchNotificationManager.cancelMatchReminder(context, match.id)
+                }
+            }
+        }
+        return isNowFav
     }
 
     override fun addFavorites(leagueIds: Set<String>, teamIds: Set<String>) {

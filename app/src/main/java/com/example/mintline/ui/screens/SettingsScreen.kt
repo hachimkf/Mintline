@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.PhoneAndroid
@@ -63,6 +65,12 @@ fun SettingsScreen(
     onClearFavorites: () -> Unit,
     modifier: Modifier = Modifier,
     onEditFavorites: () -> Unit = {},
+    matchNotificationsEnabled: Boolean = true,
+    onToggleMatchNotifications: (Boolean) -> Unit = {},
+    timeZoneLabel: String = "",
+    isCustomTimeZone: Boolean = false,
+    onCycleTimeZone: () -> Unit = {},
+    onResetTimeZone: () -> Unit = {},
     appVersion: String = "",
     updateLabel: String? = null,
     onCheckUpdates: () -> Unit = {},
@@ -138,6 +146,39 @@ fun SettingsScreen(
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
             }
+        }
+        item {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .floatingCard()
+                    .bouncyClickable(onClick = onCycleTimeZone)
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconBadge(Icons.Default.Schedule, scheme.primaryContainer, scheme.onPrimaryContainer)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Match time zone", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, color = scheme.onSurface)
+                    Text(
+                        if (timeZoneLabel.isNotBlank()) {
+                            if (isCustomTimeZone) timeZoneLabel else "$timeZoneLabel (Device)"
+                        } else "Device time",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = scheme.primary
+                    )
+                }
+                Text("Change", style = MaterialTheme.typography.labelMedium, color = scheme.primary)
+            }
+        }
+        item {
+            ToggleRow(
+                icon = Icons.Default.Notifications,
+                title = "Match reminders",
+                subtitle = "Kickoff alerts and favorite team updates",
+                checked = matchNotificationsEnabled,
+                onChange = onToggleMatchNotifications
+            )
         }
 
         item { SectionHeader("Your data", Modifier.padding(top = 8.dp)) }

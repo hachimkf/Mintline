@@ -159,12 +159,19 @@ fun HeroLiveMatchCard(
                             AnimatedScore(match.awayScore, mint.onHero)
                         }
                     } else {
-                        Text(match.kickoffFormatted, style = MaterialTheme.typography.headlineMedium, color = mint.onHero)
+                        Text(
+                            match.kickoffFormatted,
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = mint.onHero,
+                            maxLines = 1,
+                            softWrap = false
+                        )
                     }
                     Text(
-                        text = match.statusText,
+                        text = if (match.statusText != match.kickoffFormatted) match.statusText else "Upcoming",
                         style = MaterialTheme.typography.labelMedium,
                         color = mint.onHero,
+                        maxLines = 1,
                         modifier = Modifier
                             .padding(top = 4.dp)
                             .clip(RoundedCornerShape(50))
@@ -364,6 +371,8 @@ fun StandardMatchCard(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Medium,
                             color = scheme.onSurface,
+                            maxLines = 1,
+                            softWrap = false,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
                                 .background(scheme.surfaceContainerHigh)
@@ -371,7 +380,7 @@ fun StandardMatchCard(
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            match.statusText,
+                            if (match.statusText != match.kickoffFormatted) match.statusText else "Upcoming",
                             style = MaterialTheme.typography.labelMedium,
                             color = scheme.onSurfaceVariant,
                             maxLines = 1
