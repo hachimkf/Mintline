@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shrinks the artwork into the 72dp safe zone of the 108dp adaptive canvas
+     so the launcher mask shows the whole ball, not just its centre. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/app_logo"
+    android:inset="16dp" />
