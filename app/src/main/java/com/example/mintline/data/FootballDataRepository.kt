@@ -32,6 +32,8 @@ interface FootballDataRepository {
 
     fun setProvider(providerType: DataProviderType)
     fun addFavorites(leagueIds: Set<String>, teamIds: Set<String>)
+    suspend fun getLeagueTables(leagueId: String): Result<List<com.example.mintline.model.StandingGroup>>
+    suspend fun getLeagueLeaders(leagueId: String): Result<com.example.mintline.model.LeagueLeaders>
     suspend fun getMatches(
         dateString: String? = null,
         competitionId: String? = null
@@ -187,6 +189,12 @@ class DefaultFootballDataRepository(
         }
         return isNowFav
     }
+
+    private val insightsClient = com.example.mintline.data.provider.EspnInsightsClient()
+
+    override suspend fun getLeagueTables(leagueId: String) = insightsClient.fetchStandings(leagueId)
+
+    override suspend fun getLeagueLeaders(leagueId: String) = insightsClient.fetchLeaders(leagueId)
 
     override fun addFavorites(leagueIds: Set<String>, teamIds: Set<String>) {
         favoritesManager.addFavorites(leagueIds, teamIds)

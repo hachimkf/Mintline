@@ -97,7 +97,8 @@ data class MatchDetail(
     val homeLineup: TeamLineup?,
     val awayLineup: TeamLineup?,
     val commentary: List<String> = emptyList(),
-    val referee: String? = null
+    val referee: String? = null,
+    val insights: MatchInsights? = null
 )
 
 data class Competition(

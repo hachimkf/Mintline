@@ -349,8 +349,9 @@ class EasySoccerDataEspnClient(
             statistics = if (finalMatch.status == MatchStatus.SCHEDULED) emptyList() else statsList,
             homeLineup = homeLineup?.takeIf { it.starters.isNotEmpty() },
             awayLineup = awayLineup?.takeIf { it.starters.isNotEmpty() },
-            commentary = emptyList(),
-            referee = gameInfo?.optJSONArray("officials")?.optJSONObject(0)?.optString("displayName", null)
+            commentary = EspnInsightsClient.parseCommentary(json),
+            referee = gameInfo?.optJSONArray("officials")?.optJSONObject(0)?.optString("displayName", null),
+            insights = runCatching { EspnInsightsClient.parseMatchInsights(json, homeTeamId) }.getOrNull()
         )
     }
 

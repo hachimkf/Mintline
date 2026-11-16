@@ -19,7 +19,10 @@ data class LeagueInfo(
     val isCup: Boolean = false,
     val isWomen: Boolean = false,
 ) {
-    val logoUrl: String get() = "https://a.espncdn.com/i/leaguelogos/soccer/500/$logoNumber.png"
+    /** "flag:xxx" uses the country's flag when ESPN has no competition logo. */
+    val logoUrl: String get() = if (logoNumber.startsWith("flag:"))
+        "https://a.espncdn.com/i/teamlogos/countries/500/${logoNumber.removePrefix("flag:")}.png"
+    else "https://a.espncdn.com/i/leaguelogos/soccer/500/$logoNumber.png"
 }
 
 data class TeamPick(
@@ -89,6 +92,47 @@ object FootballCatalog {
         LeagueInfo("esp.copa_de_la_reina", "20445", "Copa de la Reina", "Spain", "20445", 53, isCup = true, isWomen = true),
         LeagueInfo("aut.1", "3904", "Austrian Bundesliga", "Austria", "2195", 54),
         LeagueInfo("jpn.1", "3935", "J.League", "Japan", "59", 55),
+        LeagueInfo("conmebol.sudamericana", "5454", "Copa Sudamericana", "South America", "1208", 56, isCup = true),
+        LeagueInfo("uefa.super_cup", "5462", "UEFA Super Cup", "Europe", "1272", 57, isCup = true),
+        LeagueInfo("afc.champions", "3902", "AFC Champions League Elite", "Asia", "2200", 58, isCup = true),
+        LeagueInfo("caf.champions", "2391", "CAF Champions League", "Africa", "2391", 59, isCup = true),
+        LeagueInfo("concacaf.champions", "5699", "Concacaf Champions Cup", "North America", "2298", 60, isCup = true),
+        LeagueInfo("ita.2", "3931", "Serie B", "Italy", "99", 61),
+        LeagueInfo("ger.2", "3927", "2. Bundesliga", "Germany", "97", 62),
+        LeagueInfo("fra.2", "3926", "Ligue 2", "France", "96", 63),
+        LeagueInfo("esp.super_cup", "8102", "Supercopa de España", "Spain", "431", 64, isCup = true),
+        LeagueInfo("ita.super_cup", "8103", "Supercoppa Italiana", "Italy", "flag:ita", 65, isCup = true),
+        LeagueInfo("ger.super_cup", "8101", "German Supercup", "Germany", "flag:ger", 66, isCup = true),
+        LeagueInfo("fra.super_cup", "8357", "Trophée des Champions", "France", "flag:fra", 67, isCup = true),
+        LeagueInfo("eng.charity", "5329", "Community Shield", "England", "flag:eng", 68, isCup = true),
+        LeagueInfo("concacaf.gold", "4004", "Gold Cup", "North America", "59", 69, isCup = true),
+        LeagueInfo("afc.asian.cup", "20219", "AFC Asian Cup", "Asia", "2243", 70, isCup = true),
+        LeagueInfo("fifa.olympics", "3924", "Olympic Football", "World", "71", 71, isCup = true),
+        LeagueInfo("uefa.euro_u21", "5693", "EURO Under-21", "Europe", "2284", 72, isCup = true),
+        LeagueInfo("fifa.worldq.ofc", "792", "WC Qualifiers · OFC", "Oceania", "66", 73, isCup = true),
+        LeagueInfo("sui.1", "3944", "Swiss Super League", "Switzerland", "17", 74),
+        LeagueInfo("gre.1", "3955", "Greek Super League", "Greece", "98", 75),
+        LeagueInfo("den.1", "3913", "Danish Superliga", "Denmark", "flag:den", 76),
+        LeagueInfo("nor.1", "3960", "Eliteserien", "Norway", "flag:nor", 77),
+        LeagueInfo("swe.1", "3945", "Allsvenskan", "Sweden", "16", 78),
+        LeagueInfo("rus.1", "3939", "Russian Premier League", "Russia", "106", 79),
+        LeagueInfo("cze.1", "5347", "Czech First League", "Czechia", "flag:cze", 80),
+        LeagueInfo("rou.1", "10747", "Romanian Liga 1", "Romania", "flag:rou", 81),
+        LeagueInfo("isr.1", "10750", "Israeli Premier League", "Israel", "flag:isr", 82),
+        LeagueInfo("ned.2", "3933", "Eerste Divisie", "Netherlands", "105", 83),
+        LeagueInfo("chn.1", "8376", "Chinese Super League", "China", "2350", 84),
+        LeagueInfo("aus.1", "3906", "A-League Men", "Australia", "1308", 85),
+        LeagueInfo("ind.1", "8316", "Indian Super League", "India", "2334", 86),
+        LeagueInfo("rsa.1", "3937", "South African Premiership", "South Africa", "flag:rsa", 87),
+        LeagueInfo("nga.1", "8345", "Nigeria Premier League", "Nigeria", "flag:nga", 88),
+        LeagueInfo("caf.confed", "18000", "CAF Confederation Cup", "Africa", "2391", 89, isCup = true),
+        LeagueInfo("col.1", "650", "Colombian Primera A", "Colombia", "1543", 90),
+        LeagueInfo("chi.1", "640", "Chilean Primera", "Chile", "86", 91),
+        LeagueInfo("uru.1", "680", "Liga AUF Uruguaya", "Uruguay", "1592", 92),
+        LeagueInfo("ecu.1", "660", "LigaPro Ecuador", "Ecuador", "1944", 93),
+        LeagueInfo("per.1", "670", "Liga 1 Peru", "Peru", "1813", 94),
+        LeagueInfo("par.1", "3934", "Paraguayan Primera", "Paraguay", "1892", 95),
+        LeagueInfo("usa.open", "5337", "U.S. Open Cup", "USA", "69", 96, isCup = true),
     )
 
     private val byEspnId = leagues.associateBy { it.espnId }

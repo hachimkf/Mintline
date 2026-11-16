@@ -83,6 +83,8 @@ import com.example.mintline.ui.components.glass.liquidGlass
 import com.example.mintline.ui.components.glass.rememberGlassBackdrop
 import com.example.mintline.ui.components.liveMinute
 import com.example.mintline.ui.components.match.BenchList
+import com.example.mintline.ui.components.match.CommentaryCard
+import com.example.mintline.ui.components.match.MatchInsightsSection
 import com.example.mintline.ui.components.match.EventTimeline
 import com.example.mintline.ui.components.match.FormationStrip
 import com.example.mintline.ui.components.match.MatchStatsPanel
@@ -141,12 +143,15 @@ fun MatchDetailScreen(
                     modifier = Modifier.padding(horizontal = 12.dp)
                 ) { tab ->
                     when (tab) {
-                        DetailTab.EVENTS -> TabCard {
-                            if (detail.incidents.isEmpty()) {
-                                EmptyTabNotice(Icons.Default.Schedule, "No key moments yet", "Goals, cards and subs appear here as they happen.")
-                            } else {
-                                EventTimeline(detail.incidents, finished = match.status.isFinished)
+                        DetailTab.EVENTS -> Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            TabCard {
+                                if (detail.incidents.isEmpty()) {
+                                    EmptyTabNotice(Icons.Default.Schedule, "No key moments yet", "Goals, cards and subs appear here as they happen.")
+                                } else {
+                                    EventTimeline(detail.incidents, finished = match.status.isFinished)
+                                }
                             }
+                            CommentaryCard(detail.commentary)
                         }
                         DetailTab.STATS -> TabCard {
                             if (detail.statistics.isEmpty()) {
@@ -479,32 +484,21 @@ private fun InfoTab(detail: MatchDetail) {
         add(Triple(Icons.Default.Storage, "Source", "EasySoccerData"))
     }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        detail.insights?.takeIf { !it.isEmpty }?.let { ins ->
+            MatchInsightsSection(
+                insights = ins,
+                homeName = match.homeTeam.shortName,
+                awayName = match.awayTeam.shortName,
+                homeTeamId = match.homeTeam.id,
+                awayTeamId = match.awayTeam.id,
+            )
+        }
         tiles.chunked(2).forEachIndexed { r, row ->
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEachIndexed { c, (icon, label, value) ->
                     InfoTile(icon, label, value, Modifier.weight(1f).staggeredEntrance(r * 2 + c))
                 }
                 if (row.size == 1) Spacer(Modifier.weight(1f))
-            }
-        }
-        if (detail.commentary.isNotEmpty()) {
-            TabCard {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Match notes", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
-                    detail.commentary.forEach { note ->
-                        Row {
-                            Box(
-                                Modifier
-                                    .padding(top = 7.dp)
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary)
-                            )
-                            Spacer(Modifier.width(10.dp))
-                            Text(note, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
             }
         }
     }

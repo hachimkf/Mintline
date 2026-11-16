@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.mintline"
         minSdk = 24
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 4
+        versionName = "1.3"
     }
 
     // Release signing: credentials live in keystore.properties (git-ignored), not in this file.

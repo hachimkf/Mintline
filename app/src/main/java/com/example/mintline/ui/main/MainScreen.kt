@@ -50,6 +50,7 @@ import com.example.mintline.ui.components.glass.glassSource
 import com.example.mintline.ui.components.glass.rememberGlassBackdrop
 import com.example.mintline.ui.screens.FavoritesScreen
 import com.example.mintline.ui.screens.HomeScreen
+import com.example.mintline.ui.screens.LeaguePageScreen
 import com.example.mintline.ui.screens.LeaguesScreen
 import com.example.mintline.ui.screens.MatchDetailScreen
 import com.example.mintline.ui.screens.OnboardingScreen
@@ -67,15 +68,16 @@ fun MainScreen(
     var lastDetail by remember { mutableStateOf<MatchDetail?>(null) }
     state.selectedMatchDetail?.let { lastDetail = it }
 
-    BackHandler(enabled = !state.showOnboarding && (state.selectedMatchDetail != null || state.isSearchActive)) {
+    BackHandler(enabled = !state.showOnboarding && (state.selectedMatchDetail != null || state.isSearchActive || state.openLeagueId != null)) {
         if (state.selectedMatchDetail != null) viewModel.closeMatchDetail()
+        else if (state.openLeagueId != null) viewModel.closeLeague()
         else if (state.isSearchActive) viewModel.toggleSearch(false)
     }
 
     // Home: back goes to Matches first, then needs a second press within 2s to leave the app
     val context = LocalContext.current
     var lastBackAt by remember { mutableStateOf(0L) }
-    BackHandler(enabled = !state.showOnboarding && state.selectedMatchDetail == null && !state.isSearchActive) {
+    BackHandler(enabled = !state.showOnboarding && state.selectedMatchDetail == null && !state.isSearchActive && state.openLeagueId == null) {
         if (state.activeTab != MintlineTab.MATCHES) {
             viewModel.selectTab(MintlineTab.MATCHES)
         } else {
@@ -136,10 +138,7 @@ fun MainScreen(
                         )
                         MintlineTab.LEAGUES -> LeaguesScreen(
                             competitions = state.competitions,
-                            onSelectLeague = { id ->
-                                viewModel.selectCompetition(id)
-                                viewModel.selectTab(MintlineTab.MATCHES)
-                            },
+                            onSelectLeague = viewModel::openLeague,
                             onToggleFavorite = viewModel::toggleFavorite,
                             contentPadding = contentPadding
                         )
@@ -204,7 +203,7 @@ fun MainScreen(
             )
 
             AnimatedVisibility(
-                visible = state.selectedMatchDetail == null,
+                visible = state.selectedMatchDetail == null && state.openLeagueId == null,
                 enter = slideInVertically(spring(dampingRatio = 0.7f, stiffness = 380f)) { it } + fadeIn(),
                 exit = slideOutVertically { it } + fadeOut(),
                 modifier = Modifier.align(Alignment.BottomCenter)
@@ -215,6 +214,31 @@ fun MainScreen(
                     backdrop = backdrop,
                     modifier = Modifier.navigationBarsPadding()
                 )
+            }
+
+            // League page (table, top scorers, assists) sits below the match screen
+            var lastLeague by remember { mutableStateOf<String?>(null) }
+            state.openLeagueId?.let { lastLeague = it }
+            AnimatedVisibility(
+                visible = state.openLeagueId != null,
+                enter = if (reduced) fadeIn() else slideInVertically(spring(dampingRatio = 0.85f, stiffness = 320f)) { it / 4 } + fadeIn(),
+                exit = if (reduced) fadeOut() else slideOutVertically { it / 4 } + fadeOut()
+            ) {
+                lastLeague?.let { id ->
+                    LeaguePageScreen(
+                        leagueId = id,
+                        tables = state.leagueTables,
+                        leaders = state.leagueLeaders,
+                        loading = state.leagueLoading,
+                        favoriteTeamIds = state.favoriteTeamIds,
+                        onBack = viewModel::closeLeague,
+                        onShowMatches = {
+                            viewModel.closeLeague()
+                            viewModel.selectCompetition(id)
+                            viewModel.selectTab(MintlineTab.MATCHES)
+                        }
+                    )
+                }
             }
 
             AnimatedVisibility(

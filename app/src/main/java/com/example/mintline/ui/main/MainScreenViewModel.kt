@@ -15,7 +15,9 @@ import com.example.mintline.model.Competition
 import com.example.mintline.model.DateItem
 import com.example.mintline.model.FavoriteType
 import com.example.mintline.model.Match
+import com.example.mintline.model.LeagueLeaders
 import com.example.mintline.model.MatchDetail
+import com.example.mintline.model.StandingGroup
 import com.example.mintline.theme.ThemeMode
 import com.example.mintline.ui.components.MintlineTab
 import kotlinx.coroutines.Job
@@ -58,6 +60,10 @@ data class MintlineUiState(
     val timeZoneLabel: String = "",
     val isCustomTimeZone: Boolean = false,
     val matchNotificationsEnabled: Boolean = true,
+    val openLeagueId: String? = null,
+    val leagueTables: List<StandingGroup> = emptyList(),
+    val leagueLeaders: LeagueLeaders? = null,
+    val leagueLoading: Boolean = false,
     val appVersion: String = "",
     val update: UpdateInfo? = null,
     val updateDismissed: Boolean = false,
@@ -400,6 +406,27 @@ class MainScreenViewModel(
 
     fun closeMatchDetail() {
         _uiState.update { it.copy(selectedMatchDetail = null) }
+    }
+
+    /** League page: table(s) and top scorers / assists, straight from ESPN. */
+    fun openLeague(leagueId: String) {
+        _uiState.update { it.copy(openLeagueId = leagueId, leagueTables = emptyList(), leagueLeaders = null, leagueLoading = true) }
+        viewModelScope.launch {
+            val tables = launch {
+                val r = repository.getLeagueTables(leagueId)
+                _uiState.update { if (it.openLeagueId == leagueId) it.copy(leagueTables = r.getOrDefault(emptyList())) else it }
+            }
+            val leaders = launch {
+                val r = repository.getLeagueLeaders(leagueId)
+                _uiState.update { if (it.openLeagueId == leagueId) it.copy(leagueLeaders = r.getOrNull()) else it }
+            }
+            tables.join(); leaders.join()
+            _uiState.update { if (it.openLeagueId == leagueId) it.copy(leagueLoading = false) else it }
+        }
+    }
+
+    fun closeLeague() {
+        _uiState.update { it.copy(openLeagueId = null) }
     }
 
     fun setProvider(provider: DataProviderType) {
