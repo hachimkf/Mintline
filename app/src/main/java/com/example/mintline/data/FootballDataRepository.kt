@@ -94,6 +94,18 @@ class DefaultFootballDataRepository(
             return Result.success(enriched)
         }
 
+        // Arab & African leagues via the API-Football proxy (only those leagues, or merged into "all")
+        val proxyMatches: List<Match> = if (competitionId.isNullOrBlank() || competitionId == "all" || competitionId.startsWith("af.")) {
+            apiFootball.fetchFixtures(dateString, targetZone).getOrDefault(emptyList())
+                .filter { competitionId == null || competitionId == "all" || it.leagueId == competitionId }
+        } else emptyList()
+        if (competitionId?.startsWith("af.") == true) {
+            val favs = favoritesManager.favoritesFlow.value
+            return Result.success(proxyMatches.map { m ->
+                m.copy(isFavorite = favs.matchIds.contains(m.id) || favs.teamIds.contains(m.homeTeam.id) || favs.teamIds.contains(m.awayTeam.id))
+            })
+        }
+
         // Live EasySoccerData Provider
         val leagueParam = if (!competitionId.isNullOrBlank() && competitionId != "all") competitionId else "all"
         val liveResult = espnClient.fetchScoreboard(league = leagueParam, dateString = dateString, targetZone = targetZone)
@@ -112,8 +124,8 @@ class DefaultFootballDataRepository(
             liveResult.getOrNull() ?: emptyList()
         }
 
-        return if (rawMatches.isNotEmpty() || liveResult.isSuccess) {
-            val list = rawMatches
+        return if (rawMatches.isNotEmpty() || liveResult.isSuccess || proxyMatches.isNotEmpty()) {
+            val list = rawMatches + proxyMatches
 
             _lastUpdatedTimestamp.value = System.currentTimeMillis()
             cachedMatches[cacheKey] = list
@@ -146,6 +158,7 @@ class DefaultFootballDataRepository(
     }
 
     override suspend fun getMatchDetail(matchId: String, leagueId: String): Result<MatchDetail> {
+        if (matchId.startsWith("af_")) return apiFootball.fetchDetail(matchId, timeZoneManager.timeZone.value)
         if (_activeProvider.value == DataProviderType.DEMO_MODE || matchId.startsWith("m_")) {
             return Result.success(DemoDataProvider.getDemoMatchDetail(matchId))
         }
@@ -192,6 +205,7 @@ class DefaultFootballDataRepository(
     }
 
     private val insightsClient = com.example.mintline.data.provider.EspnInsightsClient()
+    private val apiFootball = com.example.mintline.data.provider.ApiFootballProxyClient()
 
     override suspend fun getLeagueTables(leagueId: String) = insightsClient.fetchStandings(leagueId)
 

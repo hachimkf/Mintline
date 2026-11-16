@@ -116,8 +116,8 @@ data class MintlineUiState(
                     val rank = FootballCatalog.rankOf(leagueId)
                     LeagueGroup(
                         key = leagueId,
-                        title = info?.name ?: list.first().leagueName,
-                        subtitle = info?.country,
+                        title = info?.name ?: list.first().leagueName.substringBefore(" · "),
+                        subtitle = info?.country ?: list.first().leagueName.substringAfter(" · ", "").ifBlank { null },
                         logoUrl = info?.logoUrl ?: list.first().leagueLogo,
                         matches = list.sortedWith(ordered),
                         kind = if (fav) GroupKind.FAVORITE else GroupKind.LEAGUE,

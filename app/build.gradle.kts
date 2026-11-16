@@ -15,6 +15,16 @@ android {
         targetSdk = 36
         versionCode = 6
         versionName = "1.5"
+
+        // Mintline API-Football proxy (see proxy/README.md). Set mintline.proxyUrl in
+        // local.properties or as a Gradle property; empty disables Arab/African leagues.
+        val localProps = Properties().apply {
+            val f = rootProject.file("local.properties")
+            if (f.exists()) f.inputStream().use { load(it) }
+        }
+        val proxyUrl = (project.findProperty("mintline.proxyUrl") as String?)
+            ?: localProps.getProperty("mintline.proxyUrl") ?: ""
+        buildConfigField("String", "MINTLINE_PROXY_URL", "\"$proxyUrl\"")
     }
 
     // Release signing: credentials live in keystore.properties (git-ignored), not in this file.
@@ -48,7 +58,7 @@ android {
     buildFeatures {
       compose = true
       aidl = false
-      buildConfig = false
+      buildConfig = true
       shaders = false
     }
 

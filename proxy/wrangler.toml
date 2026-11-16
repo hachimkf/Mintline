@@ -1,0 +1,6 @@
+name = "mintline-proxy"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+# The API-Football key is NOT stored here. Set it as a secret:
+#   npx wrangler secret put APIFOOTBALL_KEY
