@@ -34,9 +34,17 @@ internal object WidgetData {
     private val http = OkHttpClient.Builder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(8, TimeUnit.SECONDS).build()
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    fun favoriteTeamId(ctx: Context): String? =
+    fun favoriteTeamIds(ctx: Context): Set<String> =
         ctx.getSharedPreferences("mintline_favorites", Context.MODE_PRIVATE)
-            .getStringSet("fav_teams", emptySet())?.sorted()?.firstOrNull()
+            .getStringSet("fav_teams", emptySet()).orEmpty()
+
+    /** Main team for single-team widgets: first favourite club (catalog order), else a nation. */
+    fun favoriteTeamId(ctx: Context): String? {
+        val favs = favoriteTeamIds(ctx)
+        return FootballCatalog.clubs.firstOrNull { it.espnId in favs }?.espnId
+            ?: FootballCatalog.nations.firstOrNull { it.espnId in favs }?.espnId
+            ?: favs.sorted().firstOrNull()
+    }
 
     fun favoriteLeagueId(ctx: Context): String =
         ctx.getSharedPreferences("mintline_favorites", Context.MODE_PRIVATE)
@@ -119,34 +127,88 @@ abstract class AsyncWidget : AppWidgetProvider() {
     }
 }
 
-/** "Next Match" — the favourite team's next fixture (or live game). */
+/**
+ * Match centre: the main live game right now (favourite teams first, then
+ * favourite leagues, then the biggest competition playing). With nothing
+ * live, the soonest upcoming game of any favourite team, with a countdown.
+ */
 class NextMatchWidget : AsyncWidget() {
     override fun build(ctx: Context): RemoteViews {
         val v = RemoteViews(ctx.packageName, R.layout.widget_next_match)
-        val teamId = WidgetData.favoriteTeamId(ctx) ?: return emptyState(ctx, "Pick a favourite team in Mintline")
-        val json = WidgetData.json("https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/$teamId/schedule?fixture=true")
-            ?: return emptyState(ctx, "Couldn't load fixtures")
-        val events = json.optJSONArray("events") ?: return emptyState(ctx, "No upcoming games")
-        val next = (0 until events.length()).map { events.getJSONObject(it) }
-            .firstOrNull { it.optJSONArray("competitions")?.optJSONObject(0)?.optJSONObject("status")?.optJSONObject("type")?.optString("state") != "post" }
-            ?: return emptyState(ctx, "No upcoming games")
-        val (home, away) = WidgetData.sides(next) ?: return emptyState(ctx, "No upcoming games")
-        val comp = next.optJSONArray("competitions")!!.getJSONObject(0)
-        val state = comp.optJSONObject("status")?.optJSONObject("type")?.optString("state")
-        val date = WidgetData.parseIso(next.optString("date"))
-        v.setTextViewText(R.id.nm_title, if (state == "in") "Live now" else "Next Match")
+        val favTeams = WidgetData.favoriteTeamIds(ctx)
+        val favLeagues = ctx.getSharedPreferences("mintline_favorites", Context.MODE_PRIVATE).getStringSet("fav_leagues", emptySet()).orEmpty()
+
+        // 1) live now
+        val board = WidgetData.json("https://site.api.espn.com/apis/site/v2/sports/soccer/all/scoreboard")
+        val live = board?.optJSONArray("events")?.let { ev -> (0 until ev.length()).map { ev.getJSONObject(it) } }.orEmpty()
+            .filter { it.optJSONArray("competitions")?.optJSONObject(0)?.optJSONObject("status")?.optJSONObject("type")?.optString("state") == "in" }
+        if (live.isNotEmpty()) {
+            fun leagueOf(e: JSONObject) = FootballCatalog.leagueByEspnId(Regex("""~l:(\d+)""").find(e.optString("uid"))?.groupValues?.get(1))
+            val best = live.minByOrNull { e ->
+                val (h, a) = WidgetData.sides(e) ?: return@minByOrNull 9999
+                val lg = leagueOf(e)
+                when {
+                    h.id in favTeams || a.id in favTeams -> 0
+                    lg?.slug in favLeagues -> 100 + (lg?.rank ?: 0)
+                    else -> 1000 + (lg?.rank ?: 500)
+                }
+            }!!
+            val (home, away) = WidgetData.sides(best)!!
+            val comp = best.optJSONArray("competitions")!!.getJSONObject(0)
+            val league = leagueOf(best)
+            v.setTextViewText(R.id.nm_title, "Live now")
+            v.setTextViewText(R.id.nm_home, home.name)
+            v.setTextViewText(R.id.nm_away, away.name)
+            v.setTextViewText(R.id.nm_time, "${home.score ?: 0} - ${away.score ?: 0}")
+            v.setTextViewText(R.id.nm_date, "● " + (comp.optJSONObject("status")?.optString("displayClock") ?: "LIVE"))
+            v.setTextColor(R.id.nm_date, 0xFFFF6B5E.toInt())
+            v.setTextViewText(R.id.nm_venue, comp.optJSONObject("venue")?.optString("fullName").orEmpty())
+            v.setViewVisibility(R.id.nm_countdown_box, View.GONE)
+            v.setTextViewText(R.id.nm_league, league?.name?.uppercase() ?: "LIVE")
+            WidgetData.bitmap(home.logo)?.let { v.setImageViewBitmap(R.id.nm_home_logo, it) }
+            WidgetData.bitmap(away.logo)?.let { v.setImageViewBitmap(R.id.nm_away_logo, it) }
+            WidgetData.bitmap(league?.logoUrl)?.let { v.setImageViewBitmap(R.id.nm_league_logo, it) }
+            return v
+        }
+
+        // 2) soonest upcoming game across all favourite teams
+        if (favTeams.isEmpty()) return emptyState(ctx, "Pick a favourite team in Mintline")
+        val now = System.currentTimeMillis()
+        val next = favTeams.take(6).mapNotNull { id ->
+            val json = WidgetData.json("https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/$id/schedule?fixture=true") ?: return@mapNotNull null
+            val ev = json.optJSONArray("events") ?: return@mapNotNull null
+            (0 until ev.length()).map { ev.getJSONObject(it) }
+                .filter { it.optJSONArray("competitions")?.optJSONObject(0)?.optJSONObject("status")?.optJSONObject("type")?.optString("state") == "pre" }
+                .mapNotNull { e -> WidgetData.parseIso(e.optString("date"))?.let { e to it.time } }
+                .filter { it.second > now }
+                .minByOrNull { it.second }
+        }.minByOrNull { it.second } ?: return emptyState(ctx, "No upcoming games for your teams")
+        val (event, kickoff) = next
+        val (home, away) = WidgetData.sides(event) ?: return emptyState(ctx, "No upcoming games")
+        val comp = event.optJSONArray("competitions")!!.getJSONObject(0)
+        val date = java.util.Date(kickoff)
+        v.setTextViewText(R.id.nm_title, "Next Match")
         v.setTextViewText(R.id.nm_home, home.name)
         v.setTextViewText(R.id.nm_away, away.name)
-        if (state == "in") {
-            v.setTextViewText(R.id.nm_time, "${home.score ?: 0} – ${away.score ?: 0}")
-            v.setTextViewText(R.id.nm_date, comp.optJSONObject("status")?.optString("displayClock") ?: "LIVE")
-        } else {
-            v.setTextViewText(R.id.nm_time, date?.let { SimpleDateFormat("HH:mm", Locale.getDefault()).format(it) } ?: "TBD")
-            v.setTextViewText(R.id.nm_date, date?.let { SimpleDateFormat("d MMM", Locale.getDefault()).format(it) } ?: "")
-        }
+        v.setTextViewText(R.id.nm_time, SimpleDateFormat("HH:mm", Locale.getDefault()).format(date))
+        v.setTextViewText(R.id.nm_date, SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(date))
         v.setTextViewText(R.id.nm_venue, comp.optJSONObject("venue")?.optString("fullName").orEmpty())
-        val league = FootballCatalog.leagueBySlug(next.optJSONObject("league")?.optString("slug"))
-        v.setTextViewText(R.id.nm_league, league?.name?.uppercase() ?: next.optJSONObject("league")?.optString("abbreviation").orEmpty())
+        // countdown: ticking clock inside 24h, otherwise days + hours
+        val left = kickoff - now
+        v.setViewVisibility(R.id.nm_countdown_box, View.VISIBLE)
+        if (left < 24 * 3600_000L) {
+            v.setViewVisibility(R.id.nm_countdown, View.VISIBLE)
+            v.setViewVisibility(R.id.nm_countdown_days, View.GONE)
+            v.setChronometerCountDown(R.id.nm_countdown, true)
+            v.setChronometer(R.id.nm_countdown, android.os.SystemClock.elapsedRealtime() + left, null, true)
+        } else {
+            v.setViewVisibility(R.id.nm_countdown, View.GONE)
+            v.setViewVisibility(R.id.nm_countdown_days, View.VISIBLE)
+            val d = left / (24 * 3600_000L); val h = (left / 3600_000L) % 24
+            v.setTextViewText(R.id.nm_countdown_days, "${d}d ${h}h")
+        }
+        val league = FootballCatalog.leagueBySlug(event.optJSONObject("league")?.optString("slug"))
+        v.setTextViewText(R.id.nm_league, league?.name?.uppercase() ?: event.optJSONObject("league")?.optString("abbreviation").orEmpty())
         WidgetData.bitmap(home.logo)?.let { v.setImageViewBitmap(R.id.nm_home_logo, it) }
         WidgetData.bitmap(away.logo)?.let { v.setImageViewBitmap(R.id.nm_away_logo, it) }
         WidgetData.bitmap(league?.logoUrl)?.let { v.setImageViewBitmap(R.id.nm_league_logo, it) }

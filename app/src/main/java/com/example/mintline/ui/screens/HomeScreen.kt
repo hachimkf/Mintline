@@ -80,6 +80,8 @@ fun HomeScreen(
     matches: List<Match>,
     liveMatches: List<Match>,
     leagueGroups: List<LeagueGroup>,
+    playerHits: List<com.example.mintline.model.PlayerHit> = emptyList(),
+    onOpenPlayer: (Int) -> Unit = {},
     competitions: List<Competition>,
     selectedCompetitionId: String?,
     onSelectCompetition: (String?) -> Unit,
@@ -137,6 +139,25 @@ fun HomeScreen(
                         onQueryChange = onSearchQueryChange,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
+                }
+            }
+
+            if (isSearchActive && playerHits.isNotEmpty()) {
+                item(key = "players") {
+                    Column {
+                        Text(
+                            "Players",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(start = 22.dp, bottom = 8.dp)
+                        )
+                        androidx.compose.foundation.lazy.LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(playerHits, key = { it.id }) { p -> PlayerChip(p) { onOpenPlayer(p.id) } }
+                        }
+                    }
                 }
             }
 
@@ -424,5 +445,29 @@ private fun EmptyFixtures() {
             style = MaterialTheme.typography.bodyMedium,
             color = scheme.onSurfaceVariant
         )
+    }
+}
+
+@Composable
+private fun PlayerChip(p: com.example.mintline.model.PlayerHit, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Column(
+        Modifier
+            .width(112.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(scheme.surfaceContainerHigh)
+            .bouncyClickable(pressedScale = 0.94f, onClick = onClick)
+            .padding(vertical = 12.dp, horizontal = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        coil.compose.AsyncImage(
+            model = p.photoUrl,
+            contentDescription = p.name,
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            modifier = Modifier.size(64.dp).clip(CircleShape).background(scheme.surfaceContainerLowest)
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(p.name, style = MaterialTheme.typography.labelLarge, color = scheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        p.clubName?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis) }
     }
 }

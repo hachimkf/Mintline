@@ -56,6 +56,8 @@ import com.example.mintline.ui.screens.LeaguePageScreen
 import com.example.mintline.ui.screens.LeaguesScreen
 import com.example.mintline.ui.screens.MatchDetailScreen
 import com.example.mintline.ui.screens.OnboardingScreen
+import com.example.mintline.ui.screens.NewsScreen
+import com.example.mintline.ui.screens.PlayerProfileScreen
 import com.example.mintline.ui.screens.SettingsScreen
 
 @Composable
@@ -71,8 +73,9 @@ fun MainScreen(
     var lastDetail by remember { mutableStateOf<MatchDetail?>(null) }
     state.selectedMatchDetail?.let { lastDetail = it }
 
-    BackHandler(enabled = !state.showOnboarding && (state.selectedMatchDetail != null || state.isSearchActive || state.openLeagueId != null)) {
-        if (state.selectedMatchDetail != null) viewModel.closeMatchDetail()
+    BackHandler(enabled = !state.showOnboarding && (state.playerOpen || state.selectedMatchDetail != null || state.isSearchActive || state.openLeagueId != null)) {
+        if (state.playerOpen) viewModel.closePlayer()
+        else if (state.selectedMatchDetail != null) viewModel.closeMatchDetail()
         else if (state.openLeagueId != null) viewModel.closeLeague()
         else if (state.isSearchActive) viewModel.toggleSearch(false)
     }
@@ -80,7 +83,7 @@ fun MainScreen(
     // Home: back goes to Matches first, then needs a second press within 2s to leave the app
     val context = LocalContext.current
     var lastBackAt by remember { mutableStateOf(0L) }
-    BackHandler(enabled = !state.showOnboarding && state.selectedMatchDetail == null && !state.isSearchActive && state.openLeagueId == null) {
+    BackHandler(enabled = !state.showOnboarding && !state.playerOpen && state.selectedMatchDetail == null && !state.isSearchActive && state.openLeagueId == null) {
         if (state.activeTab != MintlineTab.MATCHES) {
             viewModel.selectTab(MintlineTab.MATCHES)
         } else {
@@ -122,6 +125,8 @@ fun MainScreen(
                             matches = state.displayMatches,
                             liveMatches = state.liveMatches,
                             leagueGroups = state.leagueGroups,
+                            playerHits = state.playerHits,
+                            onOpenPlayer = viewModel::openPlayerById,
                             competitions = state.filterChips,
                             selectedCompetitionId = state.selectedCompetitionId,
                             onSelectCompetition = viewModel::selectCompetition,
@@ -138,6 +143,14 @@ fun MainScreen(
                             onRefresh = viewModel::refresh,
                             onMatchClick = { m -> viewModel.openMatchDetail(m.id, m.leagueId) },
                             onToggleFavorite = { m -> viewModel.toggleFavorite(m.id, FavoriteType.MATCH) },
+                            contentPadding = contentPadding
+                        )
+                        MintlineTab.NEWS -> NewsScreen(
+                            articles = state.news,
+                            loading = state.newsLoading,
+                            league = state.newsLeague,
+                            favoriteLeagues = state.competitions.filter { it.isFavorite },
+                            onSelectLeague = viewModel::loadNews,
                             contentPadding = contentPadding
                         )
                         MintlineTab.LEAGUES -> LeaguesScreen(
@@ -254,9 +267,24 @@ fun MainScreen(
                     MatchDetailScreen(
                         detail = detail,
                         onBack = viewModel::closeMatchDetail,
-                        onToggleFavorite = viewModel::toggleFavorite
+                        onToggleFavorite = viewModel::toggleFavorite,
+                        onOpenPlayer = viewModel::openPlayer
                     )
                 }
+            }
+
+            // Player profile sits on top of the match and league screens
+            AnimatedVisibility(
+                visible = state.playerOpen,
+                enter = if (reduced) fadeIn() else slideInVertically(spring(dampingRatio = 0.85f, stiffness = 320f)) { it / 4 } + fadeIn(),
+                exit = if (reduced) fadeOut() else slideOutVertically { it / 4 } + fadeOut()
+            ) {
+                PlayerProfileScreen(
+                    profile = state.playerProfile,
+                    loading = state.playerLoading,
+                    error = state.playerError,
+                    onBack = viewModel::closePlayer
+                )
             }
 
             val update = state.update

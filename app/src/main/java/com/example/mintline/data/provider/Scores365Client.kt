@@ -251,8 +251,10 @@ class Scores365Client(
         fun toPlayer(m: JSONObject, sub: Boolean): LineupPlayer {
             val info = members[m.optInt("id")]
             val pos = m.optJSONObject("position")?.optString("name").orEmpty().lowercase()
+            // "s365a_<athleteId>" lets the line-up open the player's profile directly
+            val athleteId = info?.optInt("athleteId")?.takeIf { it > 0 }
             return LineupPlayer(
-                id = "s365_p_${m.optInt("id")}",
+                id = athleteId?.let { "s365a_$it" } ?: "s365_p_${m.optInt("id")}",
                 name = info?.optString("name").orEmpty(),
                 jersey = info?.optInt("jerseyNumber")?.takeIf { it > 0 }?.toString() ?: "",
                 position = when {

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="22dp" />
+            <gradient android:angle="315" android:startColor="#FFD4F58A" android:endColor="#FF8FD14B" />
+        </shape>
+    </item>
+    <!-- faint halfway line + centre circle, like the in-app live card -->
+    <item android:gravity="center_horizontal" android:width="1.5dp">
+        <shape android:shape="rectangle"><solid android:color="#14102000" /></shape>
+    </item>
+    <item android:gravity="center" android:width="72dp" android:height="72dp">
+        <shape android:shape="oval"><stroke android:width="1.5dp" android:color="#14102000" /></shape>
+    </item>
+</layer-list>

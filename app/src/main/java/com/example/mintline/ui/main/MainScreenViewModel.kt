@@ -18,6 +18,10 @@ import com.example.mintline.model.DateItem
 import com.example.mintline.model.FavoriteType
 import com.example.mintline.model.Match
 import com.example.mintline.model.LeagueLeaders
+import com.example.mintline.model.NewsArticle
+import com.example.mintline.model.PlayerHit
+import com.example.mintline.model.PlayerProfile
+import com.example.mintline.data.provider.PlayersNewsClient
 import com.example.mintline.model.MatchDetail
 import com.example.mintline.model.StandingGroup
 import com.example.mintline.theme.ThemeMode
@@ -62,6 +66,14 @@ data class MintlineUiState(
     val timeZoneLabel: String = "",
     val isCustomTimeZone: Boolean = false,
     val matchNotificationsEnabled: Boolean = true,
+    val playerOpen: Boolean = false,
+    val playerLoading: Boolean = false,
+    val playerProfile: PlayerProfile? = null,
+    val playerError: String? = null,
+    val playerHits: List<PlayerHit> = emptyList(),
+    val news: List<NewsArticle> = emptyList(),
+    val newsLeague: String = "all",
+    val newsLoading: Boolean = false,
     val openLeagueId: String? = null,
     val leagueTables: List<StandingGroup> = emptyList(),
     val leagueLeaders: LeagueLeaders? = null,
@@ -308,6 +320,47 @@ class MainScreenViewModel(
 
     fun selectTab(tab: MintlineTab) {
         _uiState.update { it.copy(activeTab = tab) }
+        if (tab == MintlineTab.NEWS && _uiState.value.news.isEmpty()) loadNews(_uiState.value.newsLeague)
+    }
+
+    private val playersNews = PlayersNewsClient()
+    private var playerSearchJob: Job? = null
+
+    /** Player profile from a line-up: 365Scores players open directly, ESPN ones are matched by name + team. */
+    fun openPlayer(lineupId: String, name: String, teamName: String?) {
+        _uiState.update { it.copy(playerOpen = true, playerLoading = true, playerProfile = null, playerError = null) }
+        viewModelScope.launch {
+            val id = lineupId.removePrefix("s365a_").toIntOrNull()?.takeIf { lineupId.startsWith("s365a_") }
+                ?: playersNews.resolvePlayer(name, teamName).getOrNull()
+            if (id == null) {
+                _uiState.update { it.copy(playerLoading = false, playerError = "Couldn't find $name's profile") }
+            } else loadPlayer(id)
+        }
+    }
+
+    fun openPlayerById(id: Int) {
+        _uiState.update { it.copy(playerOpen = true, playerLoading = true, playerProfile = null, playerError = null) }
+        viewModelScope.launch { loadPlayer(id) }
+    }
+
+    private suspend fun loadPlayer(id: Int) {
+        val r = playersNews.profile(id)
+        _uiState.update {
+            if (!it.playerOpen) it
+            else it.copy(playerLoading = false, playerProfile = r.getOrNull(), playerError = r.exceptionOrNull()?.let { "Couldn't load this player" })
+        }
+    }
+
+    fun closePlayer() {
+        _uiState.update { it.copy(playerOpen = false) }
+    }
+
+    fun loadNews(league: String) {
+        _uiState.update { it.copy(newsLeague = league, newsLoading = true) }
+        viewModelScope.launch {
+            val r = playersNews.news(league)
+            _uiState.update { if (it.newsLeague == league) it.copy(news = r.getOrDefault(emptyList()), newsLoading = false) else it }
+        }
     }
 
     fun selectCompetition(compId: String?) {
@@ -330,6 +383,14 @@ class MainScreenViewModel(
 
     fun updateSearchQuery(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
+        // players show up in search after a short pause in typing
+        playerSearchJob?.cancel()
+        if (query.trim().length < 3) { _uiState.update { it.copy(playerHits = emptyList()) }; return }
+        playerSearchJob = viewModelScope.launch {
+            delay(350)
+            val hits = playersNews.searchPlayers(query).getOrDefault(emptyList())
+            _uiState.update { if (it.searchQuery == query) it.copy(playerHits = hits) else it }
+        }
     }
 
     fun toggleSearch(active: Boolean) {
@@ -377,6 +438,7 @@ class MainScreenViewModel(
                     )
                 }
                 followFavoriteLiveMatches()
+                WidgetData.refreshAll(getApplication())
             } else {
                 // If network failed, repository provided fallback fixtures
                 val fallbackMatches = (result.exceptionOrNull() as? Exception)?.let { null }

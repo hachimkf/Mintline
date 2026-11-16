@@ -43,6 +43,7 @@ class LiveMatchService : Service() {
     private val lastScores = mutableMapOf<String, Pair<Int, Int>>()
     private val crestCache = mutableMapOf<String, Bitmap?>()
     private var loop: Job? = null
+    private var ticks = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -82,6 +83,7 @@ class LiveMatchService : Service() {
                     ?: continue
                 update(id, json)
             }
+            if (++ticks % 4 == 0) com.example.mintline.widget.WidgetData.refreshAll(this)
             delay(30_000)
         }
         stopForeground(STOP_FOREGROUND_DETACH)
@@ -112,7 +114,7 @@ class LiveMatchService : Service() {
             setTextViewText(R.id.ln_home, home.name)
             setTextViewText(R.id.ln_away, away.name)
             setTextViewText(R.id.ln_score, if (state == "pre") "vs" else "$hs – $aw")
-            setTextViewText(R.id.ln_clock, when { finished -> "FT"; state == "in" -> clock; else -> "" })
+            setTextViewText(R.id.ln_clock, when { finished -> "FT"; state == "in" -> clock; else -> detail })
             crest(home.logo)?.let { setImageViewBitmap(R.id.ln_home_logo, it) }
             crest(away.logo)?.let { setImageViewBitmap(R.id.ln_away_logo, it) }
         }

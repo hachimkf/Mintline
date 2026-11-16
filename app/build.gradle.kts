@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.mintline"
         minSdk = 24
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.6"
+        versionCode = 8
+        versionName = "1.7"
 
         // Mintline API-Football proxy (see proxy/README.md). Set mintline.proxyUrl in
         // local.properties or as a Gradle property; empty disables Arab/African leagues.

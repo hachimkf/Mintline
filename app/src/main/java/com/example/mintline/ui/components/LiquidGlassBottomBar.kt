@@ -26,6 +26,8 @@ import androidx.compose.material.icons.outlined.SportsSoccer
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.Leaderboard
+import androidx.compose.material.icons.rounded.Newspaper
+import androidx.compose.material.icons.outlined.Newspaper
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -65,6 +67,7 @@ enum class MintlineTab(
     // The ball matches the app icon; the other three use rounded Material Symbols
     MATCHES("Matches", Icons.Filled.SportsSoccer, Icons.Outlined.SportsSoccer),
     LEAGUES("Leagues", Icons.Rounded.Leaderboard, Icons.Outlined.Leaderboard),
+    NEWS("News", Icons.Rounded.Newspaper, Icons.Outlined.Newspaper),
     FAVORITES("Saved", Icons.Rounded.Bookmark, Icons.Outlined.BookmarkBorder),
     SETTINGS("Settings", Icons.Rounded.Tune, Icons.Outlined.Tune)
 }
@@ -84,6 +87,10 @@ fun LiquidGlassBottomBar(
 ) {
     val tabs = MintlineTab.entries
     val scheme = MaterialTheme.colorScheme
+    // One stable lambda reading State: the ported tabs remember their index keyed on this
+    // lambda, so a new lambda per recomposition would make taps update a stale copy.
+    val selectedIndex = androidx.compose.runtime.rememberUpdatedState(tabs.indexOf(currentTab))
+    val selectedProvider = androidx.compose.runtime.remember { { selectedIndex.value } }
     Box(
         modifier
             .fillMaxWidth()
@@ -91,7 +98,7 @@ fun LiquidGlassBottomBar(
         contentAlignment = Alignment.Center
     ) {
         com.example.mintline.ui.components.liquid.LiquidBottomTabs(
-            selectedTabIndex = { tabs.indexOf(currentTab) },
+            selectedTabIndex = selectedProvider,
             onTabSelected = { onTabSelected(tabs[it]) },
             backdrop = backdrop,
             tabsCount = tabs.size,

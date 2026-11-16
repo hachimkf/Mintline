@@ -143,7 +143,8 @@ private fun surname(name: String): String {
 fun PitchLineup(
     homeLineup: TeamLineup?,
     awayLineup: TeamLineup?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenPlayer: (LineupPlayer, String) -> Unit = { _, _ -> },
 ) {
     val mint = Mint.colors
     val reduced = Mint.reducedMotion
@@ -229,12 +230,13 @@ fun PitchLineup(
             label = "selectedPlayer"
         ) { sel ->
             if (sel != null) {
+                val team = if (sel.second) homeLineup?.teamName.orEmpty() else awayLineup?.teamName.orEmpty()
                 SelectedPlayerCard(
                     player = sel.first,
-                    teamName = if (sel.second) homeLineup?.teamName.orEmpty() else awayLineup?.teamName.orEmpty(),
+                    teamName = team,
                     color = if (sel.second) mint.home else mint.away,
                     onColor = if (sel.second) mint.onHome else mint.onAway,
-                    modifier = Modifier.padding(top = 12.dp)
+                    modifier = Modifier.padding(top = 12.dp).bouncyClickable(pressedScale = 0.97f) { onOpenPlayer(sel.first, team) }
                 )
             } else {
                 Text(
@@ -458,7 +460,7 @@ private fun SelectedPlayerCard(
         Column(Modifier.weight(1f)) {
             Text(player.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, color = scheme.onSurface)
             Text(
-                listOfNotNull(teamName.ifBlank { null }, if (player.isCaptain) "Captain" else null).joinToString(" · "),
+                listOfNotNull(teamName.ifBlank { null }, if (player.isCaptain) "Captain" else null, "Tap for profile ›").joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
                 color = scheme.onSurfaceVariant
             )
@@ -519,7 +521,8 @@ fun FormationStrip(
 fun BenchList(
     lineup: TeamLineup,
     color: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpen: (LineupPlayer) -> Unit = {},
 ) {
     val scheme = MaterialTheme.colorScheme
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -531,7 +534,7 @@ fun BenchList(
             overflow = TextOverflow.Ellipsis
         )
         lineup.bench.forEach { p ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.bouncyClickable(pressedScale = 0.96f) { onOpen(p) }, verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     Modifier.size(28.dp).clip(CircleShape).background(color.copy(alpha = 0.18f)),
                     contentAlignment = Alignment.Center

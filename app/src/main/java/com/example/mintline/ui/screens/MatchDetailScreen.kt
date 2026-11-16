@@ -104,7 +104,8 @@ fun MatchDetailScreen(
     detail: MatchDetail,
     onBack: () -> Unit,
     onToggleFavorite: (String, FavoriteType) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenPlayer: (lineupId: String, name: String, team: String?) -> Unit = { _, _, _ -> },
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(DetailTab.EVENTS) }
     val match = detail.match
@@ -161,7 +162,7 @@ fun MatchDetailScreen(
                                 MatchStatsPanel(detail.statistics, match.homeTeam.shortName, match.awayTeam.shortName)
                             }
                         }
-                        DetailTab.LINEUPS -> LineupsTab(detail)
+                        DetailTab.LINEUPS -> LineupsTab(detail, onOpenPlayer)
                         DetailTab.INFO -> InfoTab(detail)
                     }
                 }
@@ -441,7 +442,7 @@ private fun TabCard(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun LineupsTab(detail: MatchDetail) {
+private fun LineupsTab(detail: MatchDetail, onOpenPlayer: (String, String, String?) -> Unit) {
     val home = detail.homeLineup
     val away = detail.awayLineup
     val mint = Mint.colors
@@ -460,7 +461,7 @@ private fun LineupsTab(detail: MatchDetail) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             away?.let { FormationStrip(it, mint.away, Modifier.padding(horizontal = 6.dp)) }
-            PitchLineup(homeLineup = home, awayLineup = away)
+            PitchLineup(homeLineup = home, awayLineup = away, onOpenPlayer = { p, team -> onOpenPlayer(p.id, p.name, team) })
             home?.let { FormationStrip(it, mint.home, Modifier.padding(horizontal = 6.dp)) }
         }
 
@@ -475,8 +476,8 @@ private fun LineupsTab(detail: MatchDetail) {
                 Text("Substitutes", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    home?.let { BenchList(it, mint.home, Modifier.weight(1f)) }
-                    away?.let { BenchList(it, mint.away, Modifier.weight(1f)) }
+                    home?.let { l -> BenchList(l, mint.home, Modifier.weight(1f)) { p -> onOpenPlayer(p.id, p.name, l.teamName) } }
+                    away?.let { l -> BenchList(l, mint.away, Modifier.weight(1f)) { p -> onOpenPlayer(p.id, p.name, l.teamName) } }
                 }
             }
         }
