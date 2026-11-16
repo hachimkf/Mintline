@@ -2,6 +2,8 @@ package com.example.mintline.ui.screens
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -253,6 +255,7 @@ fun SettingsScreen(
 }
 
 /** Pill segmented control with a springy sliding selection. */
+/** Spaced pill choices; the selected one fills in with a springy pop. */
 @Composable
 private fun <T> SlidingSegmented(
     options: List<Triple<T, String, ImageVector?>>,
@@ -260,49 +263,30 @@ private fun <T> SlidingSegmented(
     onSelect: (T) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val index = options.indexOfFirst { it.first == selected }.coerceAtLeast(0)
-    BoxWithConstraints(
-        Modifier
-            .fillMaxWidth()
-            .height(54.dp)
-            .clip(RoundedCornerShape(50))
-            .background(scheme.surfaceContainerHigh)
-            .padding(5.dp)
-    ) {
-        val slot = maxWidth / options.size
-        val x by animateDpAsState(slot * index, spring(dampingRatio = 0.6f, stiffness = 420f), label = "seg")
-        Box(
-            Modifier
-                .offset(x = x)
-                .width(slot)
-                .fillMaxHeight()
-                .clip(RoundedCornerShape(50))
-                .background(scheme.primary)
-        )
-        Row(Modifier.fillMaxSize()) {
-            options.forEach { (value, label, icon) ->
-                val sel = value == selected
-                val fg by animateColorAsState(if (sel) scheme.onPrimary else scheme.onSurfaceVariant, label = "segFg")
-                Row(
-                    Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(50))
-                        .bouncyClickable(pressedScale = 0.92f) { onSelect(value) },
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (icon != null) {
-                        Icon(icon, null, tint = fg, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                    }
-                    Text(
-                        label,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (sel) FontWeight.Medium else FontWeight.Normal,
-                        color = fg
-                    )
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { (value, label, icon) ->
+            val sel = value == selected
+            val bg by animateColorAsState(if (sel) scheme.primary else scheme.surfaceContainerHigh, label = "segBg")
+            val fg by animateColorAsState(if (sel) scheme.onPrimary else scheme.onSurfaceVariant, label = "segFg")
+            val pop by animateFloatAsState(
+                if (sel) 1f else 0.97f, spring(dampingRatio = 0.45f, stiffness = 500f), label = "segPop"
+            )
+            Row(
+                Modifier
+                    .weight(1f)
+                    .height(50.dp)
+                    .graphicsLayer { scaleX = pop; scaleY = pop }
+                    .clip(RoundedCornerShape(50))
+                    .background(bg)
+                    .bouncyClickable(pressedScale = 0.92f) { onSelect(value) },
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (icon != null) {
+                    Icon(icon, null, tint = fg, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
                 }
+                Text(label, style = MaterialTheme.typography.labelLarge, color = fg, maxLines = 1)
             }
         }
     }

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Folded scorecard: one compact row that fits the collapsed notification height -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:gravity="center_vertical" android:orientation="horizontal">
+    <ImageView android:id="@+id/ln_home_logo" android:layout_width="22dp" android:layout_height="22dp" />
+    <TextView android:id="@+id/ln_home" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="6dp"
+        android:maxLines="1" android:ellipsize="end" android:textSize="13sp" android:textAppearance="@style/TextAppearance.Compat.Notification.Title" />
+    <TextView android:id="@+id/ln_score" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingStart="6dp" android:paddingEnd="4dp"
+        android:textSize="16sp" android:textAppearance="@style/TextAppearance.Compat.Notification.Title" />
+    <TextView android:id="@+id/ln_clock" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingEnd="6dp" android:textSize="11sp" android:textColor="#FFE5483A" />
+    <TextView android:id="@+id/ln_away" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="6dp" android:gravity="end"
+        android:maxLines="1" android:ellipsize="end" android:textSize="13sp" android:textAppearance="@style/TextAppearance.Compat.Notification.Title" />
+    <ImageView android:id="@+id/ln_away_logo" android:layout_width="22dp" android:layout_height="22dp" />
+</LinearLayout>

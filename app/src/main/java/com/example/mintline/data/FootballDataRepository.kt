@@ -180,7 +180,8 @@ class DefaultFootballDataRepository(
         if (type == FavoriteType.MATCH) {
             val match = cachedMatches.values.flatten().find { it.id == id }
             if (match != null) {
-                if (isNowFav) {
+                if (isNowFav && com.example.mintline.notifications.LiveMatchService.alertsEnabled(context)) {
+                    if (match.isLive) com.example.mintline.notifications.LiveMatchService.follow(context, match.id, match.leagueId)
                     MatchNotificationManager.scheduleMatchReminder(context, match)
                 } else {
                     MatchNotificationManager.cancelMatchReminder(context, match.id)

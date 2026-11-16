@@ -8,13 +8,13 @@ plugins {
 
 android {
     namespace = "com.example.mintline"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         applicationId = "com.example.mintline"
         minSdk = 24
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 5
+        versionName = "1.4"
     }
 
     // Release signing: credentials live in keystore.properties (git-ignored), not in this file.
@@ -110,4 +110,7 @@ dependencies {
   implementation(libs.coil.compose)
   implementation(libs.okhttp)
   implementation(libs.kotlinx.serialization.json)
+
+  // Real liquid glass (lens refraction, vibrancy) — github.com/Kyant0/AndroidLiquidGlass, Apache-2.0
+  implementation(libs.kyant.backdrop)
 }

@@ -11,90 +11,86 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SportsSoccer
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.EmojiEvents
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Leaderboard
 import androidx.compose.material.icons.outlined.SportsSoccer
-import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.Leaderboard
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.mintline.theme.Mint
-import com.example.mintline.ui.components.glass.GlassBackdrop
-import com.example.mintline.ui.components.glass.liquidGlass
+import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
+import com.kyant.backdrop.highlight.Highlight
+import com.kyant.backdrop.shadow.Shadow
+import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 enum class MintlineTab(
     val title: String,
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector
 ) {
+    // The ball matches the app icon; the other three use rounded Material Symbols
     MATCHES("Matches", Icons.Filled.SportsSoccer, Icons.Outlined.SportsSoccer),
-    LEAGUES("Leagues", Icons.Filled.EmojiEvents, Icons.Outlined.EmojiEvents),
-    FAVORITES("Saved", Icons.Filled.Star, Icons.Outlined.StarBorder),
-    SETTINGS("Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
+    LEAGUES("Leagues", Icons.Rounded.Leaderboard, Icons.Outlined.Leaderboard),
+    FAVORITES("Saved", Icons.Rounded.Bookmark, Icons.Outlined.BookmarkBorder),
+    SETTINGS("Settings", Icons.Rounded.Tune, Icons.Outlined.Tune)
 }
 
 private val BarHeight = 64.dp
-private val BarInset = 6.dp
+private val BarInset = 5.dp
 
 /**
- * Floating Liquid Glass tab bar.
- *
- * The selection "droplet" is driven by two springs — the leading edge
- * moves fast, the trailing edge lags — so the pill stretches like liquid
- * while travelling and settles back to a round lens.
+ * Floating Liquid Glass tab bar built on Kyant's backdrop library
+ * (github.com/Kyant0/AndroidLiquidGlass): the bar refracts what scrolls
+ * beneath it through a real lens + vibrancy + blur, and the selection
+ * droplet is its own lens with chromatic aberration. The droplet's two
+ * edges ride separate springs so it stretches like liquid while moving.
  */
 @Composable
 fun LiquidGlassBottomBar(
     currentTab: MintlineTab,
     onTabSelected: (MintlineTab) -> Unit,
-    backdrop: GlassBackdrop?,
+    backdrop: Backdrop,
     modifier: Modifier = Modifier
 ) {
     val tabs = MintlineTab.entries
     val selectedIndex = tabs.indexOf(currentTab)
     val reduced = Mint.reducedMotion
-    val colors = MaterialTheme.colorScheme
     val mint = Mint.colors
-
-    val barShape = RoundedCornerShape(percent = 50)
+    val scheme = MaterialTheme.colorScheme
+    val surfaceTint = if (mint.isDark) Color(0xFF121411).copy(alpha = 0.35f) else Color.White.copy(alpha = 0.45f)
 
     Box(
         modifier = modifier
@@ -103,85 +99,85 @@ fun LiquidGlassBottomBar(
         contentAlignment = Alignment.Center
     ) {
         BoxWithConstraints(
-            modifier = Modifier
+            Modifier
                 .widthIn(max = 340.dp)
                 .fillMaxWidth()
                 .height(BarHeight)
-                .liquidGlass(shape = barShape, backdrop = backdrop)
+                .drawBackdrop(
+                    backdrop = backdrop,
+                    shape = { RoundedCornerShape(50) },
+                    effects = {
+                        vibrancy()
+                        blur(6.dp.toPx())
+                        lens(18.dp.toPx(), 30.dp.toPx())
+                    },
+                    highlight = { Highlight.Default },
+                    shadow = { Shadow(alpha = if (mint.isDark) 0.6f else 0.18f) },
+                    onDrawSurface = { drawRect(surfaceTint) }
+                )
                 .padding(BarInset)
         ) {
             val density = LocalDensity.current
-            val slotWidthPx = with(density) { maxWidth.toPx() } / tabs.size
+            val slotPx = with(density) { maxWidth.toPx() } / tabs.size
+            val left = remember { Animatable(selectedIndex * slotPx) }
+            val right = remember { Animatable((selectedIndex + 1) * slotPx) }
+            val press = remember { Animatable(0f) }
 
-            val left = remember { Animatable(selectedIndex * slotWidthPx) }
-            val right = remember { Animatable((selectedIndex + 1) * slotWidthPx) }
-
-            LaunchedEffect(selectedIndex, slotWidthPx) {
-                val targetL = selectedIndex * slotWidthPx
-                val targetR = targetL + slotWidthPx
-                if (reduced) {
-                    left.snapTo(targetL); right.snapTo(targetR); return@LaunchedEffect
-                }
-                val movingRight = targetL > left.value
+            LaunchedEffect(selectedIndex, slotPx) {
+                val tl = selectedIndex * slotPx
+                val tr = tl + slotPx
+                if (reduced) { left.snapTo(tl); right.snapTo(tr); return@LaunchedEffect }
+                val toRight = tl > left.value
                 val fast = spring<Float>(dampingRatio = 0.72f, stiffness = 900f)
                 val slow = spring<Float>(dampingRatio = 0.62f, stiffness = 260f)
                 coroutineScope {
-                    launch { left.animateTo(targetL, if (movingRight) slow else fast) }
-                    launch { right.animateTo(targetR, if (movingRight) fast else slow) }
+                    // the droplet swells into a lens while travelling, then settles
+                    launch { press.animateTo(1f, spring(stiffness = 900f)); press.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = 180f)) }
+                    launch { left.animateTo(tl, if (toRight) slow else fast) }
+                    launch { right.animateTo(tr, if (toRight) fast else slow) }
                 }
             }
 
-            // Stretch amount squashes the droplet vertically while it travels
-            val stretch = ((right.value - left.value) / slotWidthPx - 1f).coerceIn(0f, 1.5f)
-            val indicatorColor = colors.primary.copy(alpha = if (mint.isDark) 0.22f else 0.20f)
-            val indicatorRim = colors.primary.copy(alpha = 0.35f)
-
+            // Selection droplet: its own lens over the backdrop, with chromatic aberration
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
+                Modifier
+                    .layout { measurable, constraints ->
+                        val w = (right.value - left.value).roundToInt().coerceAtLeast(1)
+                        val p = measurable.measure(Constraints.fixed(w, constraints.maxHeight))
+                        layout(constraints.maxWidth, constraints.maxHeight) { p.place(left.value.roundToInt(), 0) }
+                    }
+                    .drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { RoundedCornerShape(50) },
+                        effects = {
+                            vibrancy()
+                            lens(
+                                (10.dp.toPx() + 8.dp.toPx() * press.value),
+                                (16.dp.toPx() + 10.dp.toPx() * press.value),
+                                chromaticAberration = true
+                            )
+                        },
+                        highlight = { Highlight.Default.copy(alpha = 0.6f + 0.4f * press.value) },
+                        layerBlock = {
+                            val stretch = ((right.value - left.value) / slotPx - 1f).coerceIn(0f, 1.5f)
+                            val s = 1f + 0.06f * press.value
+                            scaleX = s
+                            scaleY = s * (1f - 0.12f * stretch)
+                        },
+                        onDrawSurface = {
+                            drawRect(scheme.primary.copy(alpha = if (mint.isDark) 0.22f else 0.18f))
+                        }
+                    )
                     .fillMaxHeight()
-                    .drawBehind {
-                        val squash = stretch * 6.dp.toPx()
-                        val top = squash / 2f
-                        val h = size.height - squash
-                        val r = CornerRadius(h / 2f, h / 2f)
-                        drawRoundRect(
-                            color = indicatorColor,
-                            topLeft = Offset(left.value, top),
-                            size = Size(right.value - left.value, h),
-                            cornerRadius = r
-                        )
-                        drawRoundRect(
-                            brush = Brush.verticalGradient(
-                                listOf(Color.White.copy(alpha = if (mint.isDark) 0.18f else 0.55f), Color.Transparent),
-                                startY = top, endY = top + h
-                            ),
-                            topLeft = Offset(left.value, top),
-                            size = Size(right.value - left.value, h),
-                            cornerRadius = r
-                        )
-                        drawRoundRect(
-                            color = indicatorRim,
-                            topLeft = Offset(left.value, top),
-                            size = Size(right.value - left.value, h),
-                            cornerRadius = r,
-                            style = Stroke(1.dp.toPx())
-                        )
-                    }
+            )
+
+            Row(
+                Modifier.fillMaxWidth().fillMaxHeight(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().fillMaxHeight(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    tabs.forEachIndexed { index, tab ->
-                        NavItem(
-                            tab = tab,
-                            selected = index == selectedIndex,
-                            onClick = { onTabSelected(tab) },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                tabs.forEachIndexed { index, tab ->
+                    NavItem(tab, index == selectedIndex, { onTabSelected(tab) }, Modifier.weight(1f))
                 }
             }
         }
@@ -189,59 +185,31 @@ fun LiquidGlassBottomBar(
 }
 
 @Composable
-private fun NavItem(
-    tab: MintlineTab,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+private fun NavItem(tab: MintlineTab, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val reduced = Mint.reducedMotion
-    val colors = MaterialTheme.colorScheme
-
+    val scheme = MaterialTheme.colorScheme
     val tint by animateColorAsState(
-        targetValue = if (selected) {
-            if (Mint.colors.isDark) colors.primary else colors.onPrimaryContainer
-        } else colors.onSurfaceVariant,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "navTint"
+        if (selected) (if (Mint.colors.isDark) scheme.primary else scheme.onPrimaryContainer) else scheme.onSurfaceVariant,
+        spring(stiffness = Spring.StiffnessMediumLow), label = "navTint"
     )
     val scale by animateFloatAsState(
-        targetValue = when {
-            reduced -> 1f
-            pressed -> 0.86f
-            selected -> 1.06f
-            else -> 1f
-        },
-        animationSpec = spring(dampingRatio = 0.45f, stiffness = 500f),
-        label = "navScale"
+        when { reduced -> 1f; pressed -> 0.84f; selected -> 1.08f; else -> 1f },
+        spring(dampingRatio = 0.45f, stiffness = 500f), label = "navScale"
     )
-    val lift by animateFloatAsState(
-        targetValue = if (selected && !reduced) -1f else 0f,
-        animationSpec = spring(dampingRatio = 0.5f),
-        label = "navLift"
-    )
-
-    Column(
-        modifier = modifier
+    Box(
+        modifier
             .fillMaxHeight()
-            .clickable(
-                interactionSource = interaction,
-                indication = null,
-                role = Role.Tab,
-                onClick = onClick
-            )
-            .scale(scale)
-            .offset(y = lift.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .clickable(interactionSource = interaction, indication = null, role = Role.Tab, onClick = onClick)
+            .graphicsLayer { scaleX = scale; scaleY = scale },
+        contentAlignment = Alignment.Center
     ) {
         Icon(
-            imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
+            if (selected) tab.selectedIcon else tab.unselectedIcon,
             contentDescription = tab.title,
             tint = tint,
-            modifier = Modifier.size(27.dp)
+            modifier = Modifier.size(26.dp)
         )
     }
 }

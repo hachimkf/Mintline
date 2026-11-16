@@ -42,6 +42,8 @@ import com.example.mintline.model.FavoriteType
 import com.example.mintline.model.MatchDetail
 import com.example.mintline.theme.Mint
 import com.example.mintline.ui.components.LiquidGlassBottomBar
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.example.mintline.ui.components.UpdateBanner
 import com.example.mintline.ui.components.MintlineTab
 import com.example.mintline.ui.components.glass.LocalGlassBackdrop
@@ -64,6 +66,7 @@ fun MainScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val reduced = Mint.reducedMotion
     val backdrop = rememberGlassBackdrop()
+    val liquidBackdrop = rememberLayerBackdrop()
     // keep the last detail around so the exit animation has content to show
     var lastDetail by remember { mutableStateOf<MatchDetail?>(null) }
     state.selectedMatchDetail?.let { lastDetail = it }
@@ -101,6 +104,7 @@ fun MainScreen(
             Box(
                 Modifier
                     .fillMaxSize()
+                    .layerBackdrop(liquidBackdrop)
                     .glassSource(backdrop)
                     .background(MaterialTheme.colorScheme.background)
             ) {
@@ -211,7 +215,7 @@ fun MainScreen(
                 LiquidGlassBottomBar(
                     currentTab = state.activeTab,
                     onTabSelected = viewModel::selectTab,
-                    backdrop = backdrop,
+                    backdrop = liquidBackdrop,
                     modifier = Modifier.navigationBarsPadding()
                 )
             }

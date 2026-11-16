@@ -168,7 +168,12 @@ fun LeagueSectionCard(
         ) {
             Column(Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
                 group.matches.forEach { m ->
-                    CompactMatchRow(m, onClick = { onMatchClick(m) }, onToggleFavorite = { onToggleFavorite(m) })
+                    ScoreTile(
+                        m,
+                        onClick = { onMatchClick(m) },
+                        onToggleFavorite = { onToggleFavorite(m) },
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
             }
         }

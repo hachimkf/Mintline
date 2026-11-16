@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Stadium
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -195,6 +196,16 @@ fun MatchDetailScreen(
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 )
                 Spacer(Modifier.weight(1f))
+                if (match.isLive) {
+                    val ctx = androidx.compose.ui.platform.LocalContext.current
+                    GlassCircleButton(
+                        Icons.Default.NotificationsActive,
+                        "Follow live on lock screen",
+                        { com.example.mintline.notifications.LiveMatchService.follow(ctx, match.id, match.leagueId) },
+                        tint = Mint.colors.live
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
                 GlassCircleButton(
                     if (match.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
                     "Favorite",

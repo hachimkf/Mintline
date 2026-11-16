@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="mw_bg">#FF1B1C19</color>
+    <color name="mw_tile">#FF262823</color>
+    <color name="mw_text">#FFF2F3EA</color>
+    <color name="mw_muted">#FFA4A89A</color>
+    <color name="mw_accent">#FFC3EE6E</color>
+</resources>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- lime glow along the bottom, like the result card in the reference -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="28dp" />
+    <gradient android:angle="90" android:startColor="#7062C91E" android:centerColor="#1062C91E" android:endColor="#00000000" />
+</shape>

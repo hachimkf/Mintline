@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">Mintline</string>
+    <string name="widget_next_match_desc">Your team\'s next match</string>
+    <string name="widget_result_form_desc">Last result and recent form</string>
+    <string name="widget_league_table_desc">Top of your league table</string>
 </resources>

@@ -7,6 +7,7 @@ import android.content.Intent
 class MatchAlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
+        if (!LiveMatchService.alertsEnabled(context)) return // respects the Settings switch
         if (intent.action == MatchNotificationManager.ACTION_MATCH_REMINDER) {
             val matchId = intent.getStringExtra(MatchNotificationManager.EXTRA_MATCH_ID) ?: return
             val homeTeam = intent.getStringExtra(MatchNotificationManager.EXTRA_HOME_TEAM) ?: "Home"

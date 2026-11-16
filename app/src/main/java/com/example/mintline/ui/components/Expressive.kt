@@ -65,8 +65,8 @@ fun Modifier.floatingCard(
         .shadow(
             elevation = if (mint.isDark) 0.dp else elevation,
             shape = shape,
-            ambientColor = Color(0x22283018),
-            spotColor = Color(0x22283018)
+            ambientColor = Color(0x2E283018),
+            spotColor = Color(0x38283018)
         )
         .clip(shape)
         .background(fill)

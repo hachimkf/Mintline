@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mintline.data.AppUpdater
+import com.example.mintline.notifications.LiveMatchService
+import com.example.mintline.widget.WidgetData
 import com.example.mintline.data.DataProviderType
 import com.example.mintline.data.UpdateInfo
 import com.example.mintline.data.FootballCatalog
@@ -300,6 +302,7 @@ class MainScreenViewModel(
 
     fun setMatchNotifications(enabled: Boolean) {
         prefs.edit().putBoolean("match_notifications", enabled).apply()
+        if (!enabled) LiveMatchService.stopAll(getApplication()) else followFavoriteLiveMatches()
         _uiState.update { it.copy(matchNotificationsEnabled = enabled) }
     }
 
@@ -340,6 +343,7 @@ class MainScreenViewModel(
 
     fun toggleFavorite(id: String, type: FavoriteType) {
         repository.toggleFavorite(id, type)
+        if (type != FavoriteType.MATCH) WidgetData.refreshAll(getApplication())
     }
 
     fun refresh() {
@@ -372,6 +376,7 @@ class MainScreenViewModel(
                         errorMessage = null
                     )
                 }
+                followFavoriteLiveMatches()
             } else {
                 // If network failed, repository provided fallback fixtures
                 val fallbackMatches = (result.exceptionOrNull() as? Exception)?.let { null }
@@ -444,8 +449,18 @@ class MainScreenViewModel(
         _uiState.update { it.copy(reducedMotion = enabled) }
     }
 
+    /** Live games involving favourite teams (or starred games) get the lock-screen scorecard. */
+    private fun followFavoriteLiveMatches() {
+        val st = _uiState.value
+        if (!st.matchNotificationsEnabled) return
+        st.matches.filter { it.isLive && (it.isFavorite || it.homeTeam.id in st.favoriteTeamIds || it.awayTeam.id in st.favoriteTeamIds) }
+            .take(3)
+            .forEach { LiveMatchService.follow(getApplication(), it.id, it.leagueId) }
+    }
+
     fun completeOnboarding(leagueIds: Set<String>, teamIds: Set<String>) {
         repository.addFavorites(leagueIds, teamIds)
+        WidgetData.refreshAll(getApplication())
         prefs.edit().putBoolean("onboarding_done", true).apply()
         _uiState.update { it.copy(showOnboarding = false) }
     }
