@@ -94,12 +94,12 @@ class DefaultFootballDataRepository(
             return Result.success(enriched)
         }
 
-        // Arab & African leagues via the API-Football proxy (only those leagues, or merged into "all")
-        val proxyMatches: List<Match> = if (competitionId.isNullOrBlank() || competitionId == "all" || competitionId.startsWith("af.")) {
-            apiFootball.fetchFixtures(dateString, targetZone).getOrDefault(emptyList())
+        // Arab & African leagues from 365Scores (only those leagues, or merged into "all")
+        val proxyMatches: List<Match> = if (competitionId.isNullOrBlank() || competitionId == "all" || competitionId.startsWith("s365.")) {
+            scores365.fetchFixtures(dateString, targetZone).getOrDefault(emptyList())
                 .filter { competitionId == null || competitionId == "all" || it.leagueId == competitionId }
         } else emptyList()
-        if (competitionId?.startsWith("af.") == true) {
+        if (competitionId?.startsWith("s365.") == true) {
             val favs = favoritesManager.favoritesFlow.value
             return Result.success(proxyMatches.map { m ->
                 m.copy(isFavorite = favs.matchIds.contains(m.id) || favs.teamIds.contains(m.homeTeam.id) || favs.teamIds.contains(m.awayTeam.id))
@@ -125,7 +125,10 @@ class DefaultFootballDataRepository(
         }
 
         return if (rawMatches.isNotEmpty() || liveResult.isSuccess || proxyMatches.isNotEmpty()) {
-            val list = rawMatches + proxyMatches
+            // drop any 365Scores game ESPN already has (same two teams)
+            fun key(m: Match) = (m.homeTeam.name + "|" + m.awayTeam.name).lowercase().replace(Regex("[^a-z|]"), "")
+            val espnKeys = rawMatches.map(::key).toSet()
+            val list = rawMatches + proxyMatches.filterNot { key(it) in espnKeys }
 
             _lastUpdatedTimestamp.value = System.currentTimeMillis()
             cachedMatches[cacheKey] = list
@@ -158,7 +161,7 @@ class DefaultFootballDataRepository(
     }
 
     override suspend fun getMatchDetail(matchId: String, leagueId: String): Result<MatchDetail> {
-        if (matchId.startsWith("af_")) return apiFootball.fetchDetail(matchId, timeZoneManager.timeZone.value)
+        if (matchId.startsWith("s365_")) return scores365.fetchDetail(matchId, timeZoneManager.timeZone.value)
         if (_activeProvider.value == DataProviderType.DEMO_MODE || matchId.startsWith("m_")) {
             return Result.success(DemoDataProvider.getDemoMatchDetail(matchId))
         }
@@ -205,7 +208,7 @@ class DefaultFootballDataRepository(
     }
 
     private val insightsClient = com.example.mintline.data.provider.EspnInsightsClient()
-    private val apiFootball = com.example.mintline.data.provider.ApiFootballProxyClient()
+    private val scores365 = com.example.mintline.data.provider.Scores365Client()
 
     override suspend fun getLeagueTables(leagueId: String) = insightsClient.fetchStandings(leagueId)
 

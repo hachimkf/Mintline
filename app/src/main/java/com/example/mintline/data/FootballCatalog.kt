@@ -142,8 +142,8 @@ object FootballCatalog {
     fun leagueBySlug(slug: String?): LeagueInfo? = slug?.let { bySlug[it] }
 
     /** Rank for any league id used in the app (slug); unknown leagues sink to the bottom. */
-    // API-Football leagues (Arab world & Africa, "af.<id>") sit after the big European leagues and cups
-    fun rankOf(leagueId: String): Int = bySlug[leagueId]?.rank ?: if (leagueId.startsWith("af.")) 50 else 1000
+    // 365Scores leagues (Arab world & Africa, "s365.<id>") sit after the big European leagues and cups
+    fun rankOf(leagueId: String): Int = bySlug[leagueId]?.rank ?: if (leagueId.startsWith("s365.") || leagueId.startsWith("af.")) 50 else 1000
 
     /** Competitions shown in filters, the Leagues tab and the first-run picker. */
     fun competitions(): List<Competition> = leagues.map {
