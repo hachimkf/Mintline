@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/mw_gold">
+    <TextView android:id="@+id/pl_initials" android:layout_width="84dp" android:layout_height="84dp" android:layout_gravity="end|bottom" android:layout_margin="10dp"
+        android:background="@drawable/mw_initials" android:gravity="center" android:text="KM" android:textSize="30sp" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="14dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+            <ImageView android:id="@+id/pl_team_logo" android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_crest_placeholder" android:scaleType="fitCenter" />
+            <TextView android:id="@+id/pl_team" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Real Madrid" android:textSize="10sp" android:maxLines="1" android:ellipsize="end" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" android:layout_marginStart="5dp"/>
+        </LinearLayout>
+        <TextView android:id="@+id/pl_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:maxLines="2" android:text="Kylian Mbappé" android:textSize="20sp" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" />
+        <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+        <TextView android:id="@+id/pl_games" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Games: 31" android:textSize="11sp" android:maxLines="1" android:ellipsize="end" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" />
+        <TextView android:id="@+id/pl_goals" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Goals: 25" android:textSize="11sp" android:maxLines="1" android:ellipsize="end" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" />
+        <TextView android:id="@+id/pl_assists" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Assists: 5" android:textSize="11sp" android:maxLines="1" android:ellipsize="end" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" />
+    </LinearLayout>
+</FrameLayout>

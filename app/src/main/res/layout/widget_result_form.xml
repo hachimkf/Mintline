@@ -2,28 +2,30 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/mw_card">
     <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/mw_glow" android:scaleType="fitXY" />
     <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="14dp">
-        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal">
-        <TextView android:id="@+id/rf_f1" android:layout_width="24dp" android:layout_height="24dp" android:layout_marginEnd="5dp"
-            android:background="@drawable/widget_form_d" android:gravity="center" android:textSize="11sp" android:textColor="@color/mw_text" />
-        <TextView android:id="@+id/rf_f2" android:layout_width="24dp" android:layout_height="24dp" android:layout_marginEnd="5dp"
-            android:background="@drawable/widget_form_d" android:gravity="center" android:textSize="11sp" android:textColor="@color/mw_text" />
-        <TextView android:id="@+id/rf_f3" android:layout_width="24dp" android:layout_height="24dp" android:layout_marginEnd="5dp"
-            android:background="@drawable/widget_form_d" android:gravity="center" android:textSize="11sp" android:textColor="@color/mw_text" />
-        <TextView android:id="@+id/rf_f4" android:layout_width="24dp" android:layout_height="24dp" android:layout_marginEnd="5dp"
-            android:background="@drawable/widget_form_d" android:gravity="center" android:textSize="11sp" android:textColor="@color/mw_text" />
-        <TextView android:id="@+id/rf_f5" android:layout_width="24dp" android:layout_height="24dp" android:layout_marginEnd="5dp"
-            android:background="@drawable/widget_form_d" android:gravity="center" android:textSize="11sp" android:textColor="@color/mw_text" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_horizontal" android:orientation="horizontal">
+            <TextView android:id="@+id/rf_f1" android:layout_width="22dp" android:layout_height="22dp" android:layout_marginEnd="4dp" android:background="@drawable/widget_form_w" android:gravity="center" android:text="W" android:textSize="10sp" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" />
+            <TextView android:id="@+id/rf_f2" android:layout_width="22dp" android:layout_height="22dp" android:layout_marginEnd="4dp" android:background="@drawable/widget_form_w" android:gravity="center" android:text="W" android:textSize="10sp" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" />
+            <TextView android:id="@+id/rf_f3" android:layout_width="22dp" android:layout_height="22dp" android:layout_marginEnd="4dp" android:background="@drawable/widget_form_w" android:gravity="center" android:text="W" android:textSize="10sp" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" />
+            <TextView android:id="@+id/rf_f4" android:layout_width="22dp" android:layout_height="22dp" android:layout_marginEnd="4dp" android:background="@drawable/widget_form_w" android:gravity="center" android:text="W" android:textSize="10sp" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" />
+            <TextView android:id="@+id/rf_f5" android:layout_width="22dp" android:layout_height="22dp" android:layout_marginEnd="4dp" android:background="@drawable/widget_form_w" android:gravity="center" android:text="W" android:textSize="10sp" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" />
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:gravity="center" android:orientation="horizontal">
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center_horizontal" android:orientation="vertical">
-                <ImageView android:id="@+id/rf_home_logo" android:layout_width="40dp" android:layout_height="40dp" />
-                <TextView android:id="@+id/rf_home" android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:textSize="10sp" android:textColor="@color/mw_text" />
+                <ImageView android:id="@+id/rf_home_logo" android:layout_width="38dp" android:layout_height="38dp" android:src="@drawable/ic_crest_placeholder" android:scaleType="fitCenter" />
+                <TextView android:id="@+id/rf_home" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Real Madrid" android:textSize="9sp" android:maxLines="1" android:ellipsize="end" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" android:layout_marginTop="4dp"/>
             </LinearLayout>
-            <TextView android:id="@+id/rf_score" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="24sp" android:textColor="@color/mw_text" />
+            <TextView android:id="@+id/rf_score" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="2 - 0" android:textSize="22sp" android:maxLines="1" android:ellipsize="end" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" />
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center_horizontal" android:orientation="vertical">
-                <ImageView android:id="@+id/rf_away_logo" android:layout_width="40dp" android:layout_height="40dp" />
-                <TextView android:id="@+id/rf_away" android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:textSize="10sp" android:textColor="@color/mw_text" />
+                <ImageView android:id="@+id/rf_away_logo" android:layout_width="38dp" android:layout_height="38dp" android:src="@drawable/ic_crest_placeholder" android:scaleType="fitCenter" />
+                <TextView android:id="@+id/rf_away" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Espanyol" android:textSize="9sp" android:maxLines="1" android:ellipsize="end" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" android:layout_marginTop="4dp"/>
             </LinearLayout>
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="horizontal">
+            <ImageView android:layout_width="5dp" android:layout_height="5dp" android:layout_marginEnd="4dp" android:src="@drawable/mw_dot" />
+            <ImageView android:layout_width="5dp" android:layout_height="5dp" android:layout_marginEnd="4dp" android:src="@drawable/mw_dot_on" />
+            <ImageView android:layout_width="5dp" android:layout_height="5dp" android:layout_marginEnd="4dp" android:src="@drawable/mw_dot" />
+            <ImageView android:layout_width="5dp" android:layout_height="5dp" android:layout_marginEnd="4dp" android:src="@drawable/mw_dot" />
+            <ImageView android:layout_width="5dp" android:layout_height="5dp" android:layout_marginEnd="4dp" android:src="@drawable/mw_dot" />
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>

@@ -1,26 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent"
-    android:background="@drawable/mw_card" android:orientation="vertical" android:padding="16dp">
+    android:background="@drawable/mw_card" android:orientation="vertical" android:padding="14dp">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
-        <TextView android:id="@+id/nm_title" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-            android:text="Next Match" android:textSize="20sp" android:textColor="@color/mw_text" />
-        <ImageView android:id="@+id/nm_league_logo" android:layout_width="18dp" android:layout_height="18dp" />
-        <TextView android:id="@+id/nm_league" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="6dp"
-            android:maxLines="1" android:textSize="11sp" android:textColor="@color/mw_accent" />
+        <TextView android:id="@+id/nm_title" android:layout_width="0dp" android:layout_height="wrap_content" android:text="Next Match" android:textSize="20sp" android:maxLines="1" android:ellipsize="end" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" android:layout_weight="1"/>
+        <ImageView android:id="@+id/nm_league_logo" android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_crest_placeholder" android:scaleType="fitCenter" />
+        <TextView android:id="@+id/nm_league" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="LALIGA" android:textSize="11sp" android:maxLines="1" android:ellipsize="end" android:textColor="#FFFF4D4D" android:fontFamily="@font/epilogue" android:layout_marginStart="5dp"/>
     </LinearLayout>
     <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:gravity="center_vertical" android:orientation="horizontal">
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center_horizontal" android:orientation="vertical">
-            <ImageView android:id="@+id/nm_home_logo" android:layout_width="48dp" android:layout_height="48dp" />
-            <TextView android:id="@+id/nm_home" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:maxLines="1" android:textSize="12sp" android:textColor="@color/mw_text" />
+            <ImageView android:id="@+id/nm_home_logo" android:layout_width="54dp" android:layout_height="54dp" android:src="@drawable/ic_crest_placeholder" android:scaleType="fitCenter" />
+            <TextView android:id="@+id/nm_home" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Real Madrid" android:textSize="11sp" android:maxLines="1" android:ellipsize="end" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" android:layout_marginTop="6dp"/>
         </LinearLayout>
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1.1" android:gravity="center_horizontal" android:orientation="vertical">
-            <TextView android:id="@+id/nm_date" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" android:textColor="@color/mw_muted" />
-            <TextView android:id="@+id/nm_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="28sp" android:textColor="@color/mw_text" />
-            <TextView android:id="@+id/nm_venue" android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="center" android:maxLines="1" android:ellipsize="end" android:textSize="11sp" android:textColor="@color/mw_muted" />
+            <TextView android:id="@+id/nm_date" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="17 May" android:textSize="11sp" android:maxLines="1" android:ellipsize="end" android:textColor="#FF8E8E93" android:fontFamily="@font/epilogue" />
+            <TextView android:id="@+id/nm_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="21:30" android:textSize="26sp" android:maxLines="1" android:ellipsize="end" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" />
+            <TextView android:id="@+id/nm_venue" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Bernabéu, Madrid" android:textSize="10sp" android:maxLines="1" android:ellipsize="end" android:textColor="#FF8E8E93" android:fontFamily="@font/epilogue" android:gravity="center"/>
         </LinearLayout>
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center_horizontal" android:orientation="vertical">
-            <ImageView android:id="@+id/nm_away_logo" android:layout_width="48dp" android:layout_height="48dp" />
-            <TextView android:id="@+id/nm_away" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:maxLines="1" android:textSize="12sp" android:textColor="@color/mw_text" />
+            <ImageView android:id="@+id/nm_away_logo" android:layout_width="54dp" android:layout_height="54dp" android:src="@drawable/ic_crest_placeholder" android:scaleType="fitCenter" />
+            <TextView android:id="@+id/nm_away" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Real Oviedo" android:textSize="11sp" android:maxLines="1" android:ellipsize="end" android:textColor="#FFFFFFFF" android:fontFamily="@font/epilogue" android:layout_marginTop="6dp"/>
         </LinearLayout>
     </LinearLayout>
+
 </LinearLayout>

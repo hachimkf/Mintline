@@ -78,6 +78,25 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_league_table_info" />
         </receiver>
 
+        <receiver android:name=".widget.FullTimeWidget" android:exported="false" android:label="Mintline · Full time">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_full_time_info" />
+        </receiver>
+        <receiver android:name=".widget.PlayerWidget" android:exported="false" android:label="Mintline · Top player">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_player_info" />
+        </receiver>
+        <receiver android:name=".widget.TeamStatsWidget" android:exported="false" android:label="Mintline · Team stats">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_team_stats_info" />
+        </receiver>
+
         <service
             android:name=".notifications.LiveMatchService"
             android:exported="false"

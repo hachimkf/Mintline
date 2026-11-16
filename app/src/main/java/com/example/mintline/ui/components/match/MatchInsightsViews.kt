@@ -25,6 +25,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material.icons.rounded.ChatBubbleOutline
+import androidx.compose.material.icons.rounded.Flag
+import androidx.compose.material.icons.rounded.Forum
+import androidx.compose.material.icons.rounded.GpsFixed
+import androidx.compose.material.icons.rounded.OutlinedFlag
+import androidx.compose.material.icons.rounded.Sports
+import androidx.compose.material.icons.rounded.SportsSoccer
+import androidx.compose.material.icons.rounded.SwapVert
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.mintline.model.FormGame
@@ -182,41 +191,157 @@ private fun PerformersGrid(performers: List<TopPerformer>, homeName: String, awa
     }
 }
 
-/** Play-by-play, newest first; shows 8 lines until expanded. */
+private enum class CommentKind { GOAL, YELLOW, RED, SUB, FOUL, CORNER, OFFSIDE, SHOT, WHISTLE, OTHER }
+
+private fun kindOf(text: String): CommentKind {
+    val t = text.lowercase()
+    return when {
+        t.startsWith("goal") || " goal!" in t || t.contains("scores") -> CommentKind.GOAL
+        "second yellow" in t || "red card" in t -> CommentKind.RED
+        "yellow card" in t -> CommentKind.YELLOW
+        "substitution" in t -> CommentKind.SUB
+        "corner" in t -> CommentKind.CORNER
+        "offside" in t -> CommentKind.OFFSIDE
+        "foul" in t || "free kick" in t -> CommentKind.FOUL
+        "attempt" in t || "shot" in t || "saved" in t || "blocked" in t -> CommentKind.SHOT
+        "half" in t || "begins" in t || "ends" in t || "lineups" in t || "match" in t -> CommentKind.WHISTLE
+        else -> CommentKind.OTHER
+    }
+}
+
+/** Play-by-play, newest first, on a connected timeline; 8 lines until expanded. */
 @Composable
 fun CommentaryCard(lines: List<String>) {
     if (lines.isEmpty()) return
     val scheme = MaterialTheme.colorScheme
+    val mint = Mint.colors
     var expanded by remember { mutableStateOf(false) }
-    InsightCard("Commentary", "Minute by minute from ESPN") {
-        Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            (if (expanded) lines else lines.take(8)).forEach { line ->
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .floatingCard(shape = RoundedCornerShape(32.dp))
+            .padding(horizontal = 16.dp, vertical = 18.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(scheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.material3.Icon(
+                    androidx.compose.material.icons.Icons.Rounded.Forum, null,
+                    tint = scheme.onPrimaryContainer, modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text("Commentary", style = MaterialTheme.typography.titleLarge, color = scheme.onSurface)
+                Text("Minute by minute from ESPN", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            }
+        }
+        Spacer(Modifier.height(20.dp))
+        Column(Modifier.animateContentSize()) {
+            val shown = if (expanded) lines else lines.take(8)
+            shown.forEachIndexed { i, line ->
                 val minute = Regex("""^(\d+'(?:\+\d+')?)\s+""").find(line)?.groupValues?.get(1)
-                Row {
-                    Text(
-                        minute ?: "•",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = scheme.primary,
-                        modifier = Modifier.width(52.dp)
-                    )
-                    Text(
-                        if (minute != null) line.removePrefix(minute).trim() else line,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = scheme.onSurface
-                    )
+                val text = if (minute != null) line.removePrefix(minute).trim() else line
+                val kind = kindOf(text)
+                val key = kind == CommentKind.GOAL || kind == CommentKind.RED || kind == CommentKind.YELLOW
+                Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+                    // minute pill + connector line
+                    Column(Modifier.width(52.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            minute ?: "–",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (kind == CommentKind.GOAL) scheme.onPrimary else scheme.onSurface,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(if (kind == CommentKind.GOAL) scheme.primary else scheme.surfaceContainerHigh)
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                        if (i < shown.lastIndex) {
+                            Box(
+                                Modifier.padding(vertical = 4.dp).width(2.dp).weight(1f)
+                                    .clip(RoundedCornerShape(50)).background(scheme.outlineVariant.copy(alpha = 0.6f))
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Row(
+                        Modifier
+                            .weight(1f)
+                            .padding(bottom = if (i < shown.lastIndex) 12.dp else 0.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(
+                                when (kind) {
+                                    CommentKind.GOAL -> scheme.primaryContainer
+                                    CommentKind.RED -> mint.redCard.copy(alpha = 0.14f)
+                                    CommentKind.YELLOW -> mint.yellowCard.copy(alpha = 0.18f)
+                                    else -> androidx.compose.ui.graphics.Color.Transparent
+                                }
+                            )
+                            .padding(horizontal = if (key) 10.dp else 2.dp, vertical = if (key) 8.dp else 2.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        CommentIcon(kind)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (kind == CommentKind.GOAL) scheme.onPrimaryContainer else scheme.onSurface
+                        )
+                    }
                 }
             }
             if (lines.size > 8) {
+                Spacer(Modifier.height(12.dp))
                 Text(
-                    if (expanded) "Show less" else "Show all ${lines.size}",
+                    if (expanded) "Show less" else "Show all ${lines.size} updates",
                     style = MaterialTheme.typography.labelLarge,
                     color = scheme.primary,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier
+                        .fillMaxWidth()
                         .clip(RoundedCornerShape(50))
+                        .background(scheme.surfaceContainerHigh)
                         .bouncyClickable { expanded = !expanded }
-                        .padding(horizontal = 4.dp, vertical = 6.dp)
+                        .padding(vertical = 12.dp)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun CommentIcon(kind: CommentKind) {
+    val scheme = MaterialTheme.colorScheme
+    val mint = Mint.colors
+    val I = androidx.compose.material.icons.Icons.Rounded
+    Box(Modifier.size(20.dp).padding(top = 1.dp), contentAlignment = Alignment.Center) {
+        when (kind) {
+            CommentKind.YELLOW, CommentKind.RED -> Box(
+                Modifier.width(11.dp).height(15.dp).clip(RoundedCornerShape(2.dp))
+                    .background(if (kind == CommentKind.RED) mint.redCard else mint.yellowCard)
+            )
+            else -> androidx.compose.material3.Icon(
+                when (kind) {
+                    CommentKind.GOAL -> I.SportsSoccer
+                    CommentKind.SUB -> I.SwapVert
+                    CommentKind.FOUL -> I.Sports
+                    CommentKind.CORNER -> I.Flag
+                    CommentKind.OFFSIDE -> I.OutlinedFlag
+                    CommentKind.SHOT -> I.GpsFixed
+                    CommentKind.WHISTLE -> I.Timer
+                    else -> I.ChatBubbleOutline
+                },
+                null,
+                tint = when (kind) {
+                    CommentKind.GOAL -> scheme.onPrimaryContainer
+                    CommentKind.SUB -> mint.sub
+                    else -> scheme.onSurfaceVariant
+                },
+                modifier = Modifier.size(17.dp)
+            )
         }
     }
 }

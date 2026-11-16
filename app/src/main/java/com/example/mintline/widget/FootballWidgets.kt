@@ -89,7 +89,10 @@ internal object WidgetData {
     }
 
     fun refreshAll(ctx: Context) {
-        listOf(NextMatchWidget::class.java, ResultFormWidget::class.java, LeagueTableWidget::class.java).forEach { cls ->
+        listOf(
+            NextMatchWidget::class.java, ResultFormWidget::class.java, LeagueTableWidget::class.java,
+            FullTimeWidget::class.java, PlayerWidget::class.java, TeamStatsWidget::class.java
+        ).forEach { cls ->
             val ids = AppWidgetManager.getInstance(ctx).getAppWidgetIds(ComponentName(ctx, cls))
             if (ids.isNotEmpty()) {
                 ctx.sendBroadcast(Intent(ctx, cls).setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE).putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids))
@@ -143,7 +146,7 @@ class NextMatchWidget : AsyncWidget() {
         }
         v.setTextViewText(R.id.nm_venue, comp.optJSONObject("venue")?.optString("fullName").orEmpty())
         val league = FootballCatalog.leagueBySlug(next.optJSONObject("league")?.optString("slug"))
-        v.setTextViewText(R.id.nm_league, league?.name ?: next.optJSONObject("league")?.optString("abbreviation").orEmpty())
+        v.setTextViewText(R.id.nm_league, league?.name?.uppercase() ?: next.optJSONObject("league")?.optString("abbreviation").orEmpty())
         WidgetData.bitmap(home.logo)?.let { v.setImageViewBitmap(R.id.nm_home_logo, it) }
         WidgetData.bitmap(away.logo)?.let { v.setImageViewBitmap(R.id.nm_away_logo, it) }
         WidgetData.bitmap(league?.logoUrl)?.let { v.setImageViewBitmap(R.id.nm_league_logo, it) }
@@ -164,7 +167,7 @@ class ResultFormWidget : AsyncWidget() {
             .sortedByDescending { it.optString("date") }
         val last = played.firstOrNull() ?: return emptyState(ctx, "No results yet")
         val (home, away) = WidgetData.sides(last) ?: return emptyState(ctx, "No results yet")
-        v.setTextViewText(R.id.rf_score, "${home.score ?: "-"} – ${away.score ?: "-"}")
+        v.setTextViewText(R.id.rf_score, "${home.score ?: "-"} - ${away.score ?: "-"}")
         v.setTextViewText(R.id.rf_home, home.name)
         v.setTextViewText(R.id.rf_away, away.name)
         WidgetData.bitmap(home.logo)?.let { v.setImageViewBitmap(R.id.rf_home_logo, it) }
@@ -208,12 +211,11 @@ class LeagueTableWidget : AsyncWidget() {
             ?: return emptyState(ctx, "No table yet")
         val league = FootballCatalog.leagueBySlug(leagueId)
         v.setTextViewText(R.id.lt_title, "${league?.name ?: "League"} table")
-        v.setTextViewText(R.id.lt_season, Regex("""\d{4}-\d{2}""").find(group.name)?.value ?: "")
+        v.setTextViewText(R.id.lt_season, (Regex("""\d{4}-\d{2}""").find(group.name)?.value?.replace("-", "/") ?: "Season") + " ⌄")
         val rows = listOf(
             listOf(R.id.lt_row1, R.id.lt_r1, R.id.lt_r1_logo, R.id.lt_r1_team, R.id.lt_r1_p, R.id.lt_r1_w, R.id.lt_r1_d, R.id.lt_r1_l, R.id.lt_r1_pts),
             listOf(R.id.lt_row2, R.id.lt_r2, R.id.lt_r2_logo, R.id.lt_r2_team, R.id.lt_r2_p, R.id.lt_r2_w, R.id.lt_r2_d, R.id.lt_r2_l, R.id.lt_r2_pts),
             listOf(R.id.lt_row3, R.id.lt_r3, R.id.lt_r3_logo, R.id.lt_r3_team, R.id.lt_r3_p, R.id.lt_r3_w, R.id.lt_r3_d, R.id.lt_r3_l, R.id.lt_r3_pts),
-            listOf(R.id.lt_row4, R.id.lt_r4, R.id.lt_r4_logo, R.id.lt_r4_team, R.id.lt_r4_p, R.id.lt_r4_w, R.id.lt_r4_d, R.id.lt_r4_l, R.id.lt_r4_pts),
         )
         rows.forEachIndexed { i, ids ->
             val tr = group.rows.getOrNull(i)
@@ -228,6 +230,115 @@ class LeagueTableWidget : AsyncWidget() {
             v.setTextViewText(ids[7], "${r.lost}")
             v.setTextViewText(ids[8], "${r.points}")
         }
+        return v
+    }
+}
+
+/** League (slug) the team most recently played a domestic league game in. */
+private fun teamLeague(teamId: String): String? {
+    val json = WidgetData.json("https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/$teamId/schedule") ?: return null
+    val ev = json.optJSONArray("events") ?: return null
+    return (0 until ev.length()).map { ev.getJSONObject(it).optJSONObject("league")?.optString("slug") }
+        .firstOrNull { slug -> slug != null && FootballCatalog.leagueBySlug(slug)?.isCup == false }
+}
+
+private fun leagueTag(slug: String?): String =
+    FootballCatalog.leagueBySlug(slug)?.name?.uppercase() ?: ""
+
+/** Full-time card: last result of the favourite team with the scorers. */
+class FullTimeWidget : AsyncWidget() {
+    override fun build(ctx: Context): RemoteViews {
+        val v = RemoteViews(ctx.packageName, R.layout.widget_full_time)
+        val teamId = WidgetData.favoriteTeamId(ctx) ?: return emptyState(ctx, "Pick a favourite team in Mintline")
+        val json = WidgetData.json("https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/$teamId/schedule")
+            ?: return emptyState(ctx, "Couldn't load results")
+        val events = json.optJSONArray("events") ?: return emptyState(ctx, "No results yet")
+        val last = (0 until events.length()).map { events.getJSONObject(it) }
+            .filter { it.optJSONArray("competitions")?.optJSONObject(0)?.optJSONObject("status")?.optJSONObject("type")?.optString("state") == "post" }
+            .maxByOrNull { it.optString("date") } ?: return emptyState(ctx, "No results yet")
+        val (home, away) = WidgetData.sides(last) ?: return emptyState(ctx, "No results yet")
+        val slug = last.optJSONObject("league")?.optString("slug")
+        v.setTextViewText(R.id.ft_league, leagueTag(slug).ifBlank { last.optJSONObject("league")?.optString("abbreviation").orEmpty() })
+        v.setTextViewText(R.id.ft_date, WidgetData.parseIso(last.optString("date"))?.let { java.text.SimpleDateFormat("dd.MM", java.util.Locale.getDefault()).format(it) } ?: "")
+        v.setTextViewText(R.id.ft_score, "${home.score ?: "-"} - ${away.score ?: "-"}")
+        WidgetData.bitmap(home.logo)?.let { v.setImageViewBitmap(R.id.ft_home_logo, it) }
+        WidgetData.bitmap(away.logo)?.let { v.setImageViewBitmap(R.id.ft_away_logo, it) }
+        WidgetData.bitmap(FootballCatalog.leagueBySlug(slug)?.logoUrl)?.let { v.setImageViewBitmap(R.id.ft_league_logo, it) }
+        // scorers from the match summary
+        val summary = WidgetData.json("https://site.api.espn.com/apis/site/v2/sports/soccer/${slug ?: "all"}/summary?event=${last.optString("id")}")
+        val goals = summary?.optJSONArray("keyEvents")?.let { ke ->
+            (0 until ke.length()).map { ke.getJSONObject(it) }.filter { it.optBoolean("scoringPlay") }.mapNotNull { e ->
+                val name = e.optJSONArray("participants")?.optJSONObject(0)?.optJSONObject("athlete")?.optString("displayName") ?: return@mapNotNull null
+                "${name.substringAfterLast(' ')} ${e.optJSONObject("clock")?.optString("displayValue").orEmpty()}"
+            }
+        }.orEmpty()
+        v.setTextViewText(R.id.ft_scorers, goals.take(3).joinToString("\n"))
+        return v
+    }
+}
+
+/** Top-scorer card for the favourite team (ESPN has no soccer headshots, so initials). */
+class PlayerWidget : AsyncWidget() {
+    override fun build(ctx: Context): RemoteViews {
+        val v = RemoteViews(ctx.packageName, R.layout.widget_player)
+        val teamId = WidgetData.favoriteTeamId(ctx) ?: return emptyState(ctx, "Pick a favourite team in Mintline")
+        val league = teamLeague(teamId) ?: return emptyState(ctx, "No league stats yet")
+        val json = WidgetData.json("https://site.api.espn.com/apis/site/v2/sports/soccer/$league/statistics")
+            ?: return emptyState(ctx, "Couldn't load player stats")
+        val stats = json.optJSONArray("stats") ?: return emptyState(ctx, "No player stats yet")
+        fun list(name: String) = (0 until stats.length()).map { stats.getJSONObject(it) }
+            .firstOrNull { it.optString("name") == name }?.optJSONArray("leaders")
+        val goals = list("goalsLeaders") ?: return emptyState(ctx, "No player stats yet")
+        val top = (0 until goals.length()).map { goals.getJSONObject(it) }
+            .firstOrNull { it.optJSONObject("athlete")?.optJSONObject("team")?.optString("id") == teamId }
+            ?: return emptyState(ctx, "No scorer from your team yet")
+        val athlete = top.getJSONObject("athlete")
+        val name = athlete.optString("displayName")
+        val matches = Regex("""Matches:\s*(\d+)""").find(top.optString("displayValue"))?.groupValues?.get(1) ?: "–"
+        val assists = list("assistsLeaders")?.let { a ->
+            (0 until a.length()).map { a.getJSONObject(it) }.firstOrNull { it.optJSONObject("athlete")?.optString("id") == athlete.optString("id") }
+                ?.optDouble("value")?.toInt()
+        } ?: 0
+        val team = athlete.optJSONObject("team")
+        v.setTextViewText(R.id.pl_team, team?.optString("displayName").orEmpty())
+        v.setTextViewText(R.id.pl_name, name.replace(" ", "\n", ignoreCase = false).let { if (name.count { it == ' ' } == 1) it else name })
+        v.setTextViewText(R.id.pl_games, "Games: $matches")
+        v.setTextViewText(R.id.pl_goals, "Goals: ${top.optDouble("value").toInt()}")
+        v.setTextViewText(R.id.pl_assists, "Assists: $assists")
+        v.setTextViewText(R.id.pl_initials, name.split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase() })
+        WidgetData.bitmap(team?.optJSONArray("logos")?.optJSONObject(0)?.optString("href"))?.let { v.setImageViewBitmap(R.id.pl_team_logo, it) }
+        return v
+    }
+}
+
+/** Season stats card: matches, goals, yellow and red cards for the favourite team. */
+class TeamStatsWidget : AsyncWidget() {
+    override fun build(ctx: Context): RemoteViews {
+        val v = RemoteViews(ctx.packageName, R.layout.widget_team_stats)
+        val teamId = WidgetData.favoriteTeamId(ctx) ?: return emptyState(ctx, "Pick a favourite team in Mintline")
+        val league = teamLeague(teamId) ?: return emptyState(ctx, "No league stats yet")
+        val season = WidgetData.json("https://site.api.espn.com/apis/site/v2/sports/soccer/$league/statistics")
+            ?.optJSONObject("season")?.optInt("year") ?: return emptyState(ctx, "No season stats yet")
+        val json = WidgetData.json("https://sports.core.api.espn.com/v2/sports/soccer/leagues/$league/seasons/$season/types/1/teams/$teamId/statistics")
+            ?: return emptyState(ctx, "Couldn't load team stats")
+        val values = mutableMapOf<String, String>()
+        json.optJSONObject("splits")?.optJSONArray("categories")?.let { cats ->
+            for (c in 0 until cats.length()) {
+                val st = cats.getJSONObject(c).optJSONArray("stats") ?: continue
+                for (i in 0 until st.length()) st.getJSONObject(i).let { values.putIfAbsent(it.optString("name"), it.optString("displayValue")) }
+            }
+        }
+        val teamJson = WidgetData.json("https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/$teamId")?.optJSONObject("team")
+        v.setTextViewText(R.id.ts_team, teamJson?.optString("displayName") ?: FootballCatalog.teamById(teamId)?.name.orEmpty())
+        v.setTextViewText(R.id.ts_league, leagueTag(league))
+        v.setTextViewText(R.id.ts_season, "$season/${(season + 1) % 100} ⌄")
+        v.setTextViewText(R.id.ts_matches, values["appearances"] ?: values["gamesPlayed"] ?: "–")
+        v.setTextViewText(R.id.ts_goals, values["totalGoals"] ?: "–")
+        v.setTextViewText(R.id.ts_yellow, values["yellowCards"] ?: "–")
+        v.setTextViewText(R.id.ts_red, values["redCards"] ?: "–")
+        WidgetData.bitmap(teamJson?.optJSONArray("logos")?.optJSONObject(0)?.optString("href") ?: FootballCatalog.teamById(teamId)?.logoUrl)
+            ?.let { v.setImageViewBitmap(R.id.ts_logo, it) }
+        WidgetData.bitmap(FootballCatalog.leagueBySlug(league)?.logoUrl)?.let { v.setImageViewBitmap(R.id.ts_league_logo, it) }
         return v
     }
 }

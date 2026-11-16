@@ -3,4 +3,7 @@
     <string name="widget_next_match_desc">Your team\'s next match</string>
     <string name="widget_result_form_desc">Last result and recent form</string>
     <string name="widget_league_table_desc">Top of your league table</string>
+    <string name="widget_full_time_desc">Full-time result with scorers</string>
+    <string name="widget_player_desc">Your team\'s top scorer this season</string>
+    <string name="widget_team_stats_desc">Season stats for your team</string>
 </resources>
