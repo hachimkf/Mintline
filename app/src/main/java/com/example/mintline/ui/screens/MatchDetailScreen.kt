@@ -96,6 +96,7 @@ enum class DetailTab(val label: String) {
     EVENTS("Timeline"),
     STATS("Stats"),
     LINEUPS("Line-ups"),
+    TABLE("Table"),
     INFO("Info")
 }
 
@@ -106,6 +107,7 @@ fun MatchDetailScreen(
     onToggleFavorite: (String, FavoriteType) -> Unit,
     modifier: Modifier = Modifier,
     onOpenPlayer: (lineupId: String, name: String, team: String?) -> Unit = { _, _, _ -> },
+    bracket: com.example.mintline.model.Bracket? = null,
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(DetailTab.EVENTS) }
     val match = detail.match
@@ -163,6 +165,30 @@ fun MatchDetailScreen(
                             }
                         }
                         DetailTab.LINEUPS -> LineupsTab(detail, onOpenPlayer)
+                        DetailTab.TABLE -> Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            val table = detail.insights?.table
+                            if (table == null && bracket == null) {
+                                TabCard { EmptyTabNotice(Icons.Default.EmojiEvents, "No table for this game", "League tables and knockout draws appear here when the competition has them.") }
+                            }
+                            table?.let { t ->
+                                TabCard {
+                                    Column {
+                                        Text(t.name.ifBlank { match.leagueName.substringBefore(" · ") }, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                                        Spacer(Modifier.height(10.dp))
+                                        com.example.mintline.ui.components.match.StandingsTable(t, highlightTeamIds = setOf(match.homeTeam.id, match.awayTeam.id))
+                                    }
+                                }
+                            }
+                            bracket?.let { b ->
+                                TabCard {
+                                    Column {
+                                        Text("Knockout draw", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                                        Spacer(Modifier.height(12.dp))
+                                        com.example.mintline.ui.components.match.BracketView(b, highlightNames = setOf(match.homeTeam.name, match.awayTeam.name))
+                                    }
+                                }
+                            }
+                        }
                         DetailTab.INFO -> InfoTab(detail)
                     }
                 }
@@ -270,7 +296,7 @@ private fun DetailHeroCard(detail: MatchDetail, modifier: Modifier = Modifier) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(verticalAlignment = Alignment.Top) {
-                HeroSide(match.homeTeam.name, match.homeTeam.crestUrl, scorerLines(home = true), Modifier.weight(1f))
+                HeroSide(match.homeTeam.name, match.homeTeam.crestUrl, scorerLines(home = true), Modifier.weight(1f), rankLabel(detail, match.homeTeam.id))
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.weight(1.1f).padding(top = 6.dp)
@@ -310,7 +336,7 @@ private fun DetailHeroCard(detail: MatchDetail, modifier: Modifier = Modifier) {
                         )
                     }
                 }
-                HeroSide(match.awayTeam.name, match.awayTeam.crestUrl, scorerLines(home = false), Modifier.weight(1f))
+                HeroSide(match.awayTeam.name, match.awayTeam.crestUrl, scorerLines(home = false), Modifier.weight(1f), rankLabel(detail, match.awayTeam.id))
             }
 
             if (match.isLive) {
@@ -341,8 +367,20 @@ private fun DetailHeroCard(detail: MatchDetail, modifier: Modifier = Modifier) {
     }
 }
 
+private fun ordinal(n: Int) = n.toString() + when {
+    n % 100 in 11..13 -> "th"; n % 10 == 1 -> "st"; n % 10 == 2 -> "nd"; n % 10 == 3 -> "rd"; else -> "th"
+}
+
+/** "3rd · Premier League" for a team found in the match's league table. */
+private fun rankLabel(detail: MatchDetail, teamId: String): String? {
+    val row = detail.insights?.table?.rows?.firstOrNull { it.row.team.id == teamId }?.row ?: return null
+    // "Qatar, Doha Bank Stars League · Qatar" -> "Doha Bank Stars League"
+    val league = detail.match.leagueName.substringBefore(" · ").substringAfter(", ")
+    return "${ordinal(row.rank)} · $league"
+}
+
 @Composable
-private fun HeroSide(name: String, crest: String?, scorers: List<String>, modifier: Modifier) {
+private fun HeroSide(name: String, crest: String?, scorers: List<String>, modifier: Modifier, rank: String? = null) {
     val mint = Mint.colors
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         TeamCrest(crestUrl = crest, teamName = name, size = 76.dp, plate = Color.White.copy(alpha = 0.92f))
@@ -356,6 +394,20 @@ private fun HeroSide(name: String, crest: String?, scorers: List<String>, modifi
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
+        // position in the competition, e.g. "3rd · LaLiga"
+        rank?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.labelSmall,
+                color = mint.onHero,
+                maxLines = 1,
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(mint.onHero.copy(alpha = 0.1f))
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            )
+        }
         if (scorers.isNotEmpty()) Spacer(Modifier.height(4.dp))
         scorers.take(5).forEach {
             Row(
@@ -460,9 +512,7 @@ private fun LineupsTab(detail: MatchDetail, onOpenPlayer: (String, String, Strin
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            away?.let { FormationStrip(it, mint.away, Modifier.padding(horizontal = 6.dp)) }
             PitchLineup(homeLineup = home, awayLineup = away, onOpenPlayer = { p, team -> onOpenPlayer(p.id, p.name, team) })
-            home?.let { FormationStrip(it, mint.home, Modifier.padding(horizontal = 6.dp)) }
         }
 
         val hasBench = (home?.bench?.isNotEmpty() == true) || (away?.bench?.isNotEmpty() == true)

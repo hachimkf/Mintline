@@ -77,7 +77,7 @@ class ApiFootballProxyClient(
         }
     }
 
-    private fun parseMatch(f: JSONObject, zone: ZoneId): Match? {
+    internal fun parseMatch(f: JSONObject, zone: ZoneId): Match? {
         val fx = f.optJSONObject("fixture") ?: return null
         val league = f.optJSONObject("league") ?: return null
         val teams = f.optJSONObject("teams") ?: return null
@@ -132,7 +132,7 @@ class ApiFootballProxyClient(
         )
     }
 
-    private fun parseEvents(arr: JSONArray?, homeId: Int?): List<MatchIncident> {
+    internal fun parseEvents(arr: JSONArray?, homeId: Int?): List<MatchIncident> {
         arr ?: return emptyList()
         return (0 until arr.length()).mapNotNull { i ->
             val e = arr.getJSONObject(i)
@@ -174,7 +174,7 @@ class ApiFootballProxyClient(
         }
     }
 
-    private fun parseStats(arr: JSONArray?, homeId: Int?): List<MatchStatistic> {
+    internal fun parseStats(arr: JSONArray?, homeId: Int?): List<MatchStatistic> {
         if (arr == null || arr.length() < 2) return emptyList()
         val blocks = (0 until arr.length()).map { arr.getJSONObject(it) }
         val home = blocks.firstOrNull { it.optJSONObject("team")?.optInt("id") == homeId } ?: blocks[0]
@@ -194,7 +194,7 @@ class ApiFootballProxyClient(
         }
     }
 
-    private fun parseLineup(arr: JSONArray?, homeId: Int?, home: Boolean): TeamLineup? {
+    internal fun parseLineup(arr: JSONArray?, homeId: Int?, home: Boolean): TeamLineup? {
         arr ?: return null
         val block = (0 until arr.length()).map { arr.getJSONObject(it) }
             .firstOrNull { (it.optJSONObject("team")?.optInt("id") == homeId) == home } ?: return null

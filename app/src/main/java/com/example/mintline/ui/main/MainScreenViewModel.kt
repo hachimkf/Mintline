@@ -66,6 +66,8 @@ data class MintlineUiState(
     val timeZoneLabel: String = "",
     val isCustomTimeZone: Boolean = false,
     val matchNotificationsEnabled: Boolean = true,
+    val detailBracket: com.example.mintline.model.Bracket? = null,
+    val leagueBracket: com.example.mintline.model.Bracket? = null,
     val playerOpen: Boolean = false,
     val playerLoading: Boolean = false,
     val playerProfile: PlayerProfile? = null,
@@ -465,8 +467,14 @@ class MainScreenViewModel(
                     selectedMatchDetail = res.getOrNull()?.let { d ->
                         d.copy(match = d.match.copy(isFavorite = favIds.contains(d.match.id)))
                     },
-                    isLoadingDetail = false
+                    isLoadingDetail = false,
+                    detailBracket = null
                 )
+            }
+            // knockout draw for the match's competition (cups only show one)
+            res.getOrNull()?.match?.let { m ->
+                val b = repository.getBracket(m.leagueId, m.leagueName).getOrNull()
+                _uiState.update { s -> if (s.selectedMatchDetail?.match?.id == m.id) s.copy(detailBracket = b) else s }
             }
         }
     }
@@ -477,7 +485,11 @@ class MainScreenViewModel(
 
     /** League page: table(s) and top scorers / assists, straight from ESPN. */
     fun openLeague(leagueId: String) {
-        _uiState.update { it.copy(openLeagueId = leagueId, leagueTables = emptyList(), leagueLeaders = null, leagueLoading = true) }
+        _uiState.update { it.copy(openLeagueId = leagueId, leagueTables = emptyList(), leagueLeaders = null, leagueLoading = true, leagueBracket = null) }
+        if (FootballCatalog.leagueBySlug(leagueId)?.isCup == true) viewModelScope.launch {
+            val b = repository.getBracket(leagueId, FootballCatalog.leagueBySlug(leagueId)?.name ?: "").getOrNull()
+            _uiState.update { if (it.openLeagueId == leagueId) it.copy(leagueBracket = b) else it }
+        }
         viewModelScope.launch {
             val tables = launch {
                 val r = repository.getLeagueTables(leagueId)

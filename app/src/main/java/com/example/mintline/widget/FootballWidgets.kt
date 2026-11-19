@@ -98,8 +98,7 @@ internal object WidgetData {
 
     fun refreshAll(ctx: Context) {
         listOf(
-            NextMatchWidget::class.java, ResultFormWidget::class.java, LeagueTableWidget::class.java,
-            FullTimeWidget::class.java, PlayerWidget::class.java, TeamStatsWidget::class.java
+            NextMatchWidget::class.java
         ).forEach { cls ->
             val ids = AppWidgetManager.getInstance(ctx).getAppWidgetIds(ComponentName(ctx, cls))
             if (ids.isNotEmpty()) {
@@ -156,15 +155,19 @@ class NextMatchWidget : AsyncWidget() {
             val (home, away) = WidgetData.sides(best)!!
             val comp = best.optJSONArray("competitions")!!.getJSONObject(0)
             val league = leagueOf(best)
-            v.setTextViewText(R.id.nm_title, "Live now")
+            v.setTextViewText(R.id.nm_title, "Live")
             v.setTextViewText(R.id.nm_home, home.name)
             v.setTextViewText(R.id.nm_away, away.name)
-            v.setTextViewText(R.id.nm_time, "${home.score ?: 0} - ${away.score ?: 0}")
-            v.setTextViewText(R.id.nm_date, "● " + (comp.optJSONObject("status")?.optString("displayClock") ?: "LIVE"))
-            v.setTextColor(R.id.nm_date, 0xFFFF6B5E.toInt())
-            v.setTextViewText(R.id.nm_venue, comp.optJSONObject("venue")?.optString("fullName").orEmpty())
-            v.setViewVisibility(R.id.nm_countdown_box, View.GONE)
-            v.setTextViewText(R.id.nm_league, league?.name?.uppercase() ?: "LIVE")
+            v.setTextViewText(R.id.nm_time, "${home.score ?: 0} : ${away.score ?: 0}")
+            v.setTextViewText(R.id.nm_venue, comp.optJSONObject("venue")?.optString("fullName")?.takeIf { it.isNotBlank() } ?: (league?.name ?: "Live"))
+            v.setTextViewText(R.id.nm_date, league?.name ?: "")
+            // green pill: ▸ live minute
+            v.setViewVisibility(R.id.nm_countdown_box, View.VISIBLE)
+            v.setViewVisibility(R.id.nm_countdown, View.GONE)
+            v.setViewVisibility(R.id.nm_countdown_days, View.VISIBLE)
+            v.setTextViewText(R.id.nm_countdown_label, "▸ ")
+            v.setTextViewText(R.id.nm_countdown_days, (comp.optJSONObject("status")?.optString("displayClock") ?: "LIVE").replace("'+", " + ").removeSuffix("'"))
+            v.setTextViewText(R.id.nm_league, league?.name ?: "Live")
             WidgetData.bitmap(home.logo)?.let { v.setImageViewBitmap(R.id.nm_home_logo, it) }
             WidgetData.bitmap(away.logo)?.let { v.setImageViewBitmap(R.id.nm_away_logo, it) }
             WidgetData.bitmap(league?.logoUrl)?.let { v.setImageViewBitmap(R.id.nm_league_logo, it) }
@@ -187,12 +190,13 @@ class NextMatchWidget : AsyncWidget() {
         val (home, away) = WidgetData.sides(event) ?: return emptyState(ctx, "No upcoming games")
         val comp = event.optJSONArray("competitions")!!.getJSONObject(0)
         val date = java.util.Date(kickoff)
-        v.setTextViewText(R.id.nm_title, "Next Match")
+        v.setTextViewText(R.id.nm_title, "Next")
         v.setTextViewText(R.id.nm_home, home.name)
         v.setTextViewText(R.id.nm_away, away.name)
         v.setTextViewText(R.id.nm_time, SimpleDateFormat("HH:mm", Locale.getDefault()).format(date))
         v.setTextViewText(R.id.nm_date, SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(date))
-        v.setTextViewText(R.id.nm_venue, comp.optJSONObject("venue")?.optString("fullName").orEmpty())
+        v.setTextViewText(R.id.nm_venue, comp.optJSONObject("venue")?.optString("fullName")?.takeIf { it.isNotBlank() } ?: "Next match")
+        v.setTextViewText(R.id.nm_countdown_label, "Kick-off in ")
         // countdown: ticking clock inside 24h, otherwise days + hours
         val left = kickoff - now
         v.setViewVisibility(R.id.nm_countdown_box, View.VISIBLE)
@@ -208,7 +212,7 @@ class NextMatchWidget : AsyncWidget() {
             v.setTextViewText(R.id.nm_countdown_days, "${d}d ${h}h")
         }
         val league = FootballCatalog.leagueBySlug(event.optJSONObject("league")?.optString("slug"))
-        v.setTextViewText(R.id.nm_league, league?.name?.uppercase() ?: event.optJSONObject("league")?.optString("abbreviation").orEmpty())
+        v.setTextViewText(R.id.nm_league, league?.name ?: event.optJSONObject("league")?.optString("abbreviation").orEmpty())
         WidgetData.bitmap(home.logo)?.let { v.setImageViewBitmap(R.id.nm_home_logo, it) }
         WidgetData.bitmap(away.logo)?.let { v.setImageViewBitmap(R.id.nm_away_logo, it) }
         WidgetData.bitmap(league?.logoUrl)?.let { v.setImageViewBitmap(R.id.nm_league_logo, it) }

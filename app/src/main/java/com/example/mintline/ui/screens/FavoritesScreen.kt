@@ -88,54 +88,58 @@ fun FavoritesScreen(
             return@LazyColumn
         }
 
-        if (teams.isNotEmpty()) {
-            item {
-                SectionHeader("Teams", Modifier.padding(horizontal = 16.dp)) {
-                    Text(
-                        "Edit",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clip(RoundedCornerShape(50)).bouncyClickable(onClick = onEditFavorites).padding(horizontal = 10.dp, vertical = 6.dp)
-                    )
-                }
-            }
-            item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(teams, key = { it.espnId }) { t ->
-                        SavedChip(t.name, t.logoUrl, round = true, onOpen = {}, onRemove = { onRemoveTeam(t.espnId) })
-                    }
-                }
+        // Everything grouped by continent: Europe, Africa, Asia, Americas, International
+        fun matchContinent(m: Match) = FootballCatalog.continentOf(
+            FootballCatalog.leagueBySlug(m.leagueId)?.country ?: m.leagueName.substringAfter(" · ", "")
+        )
+        val teamsBy = teams.groupBy { FootballCatalog.teamContinent(it.espnId) }
+        val compsBy = favoriteCompetitions.groupBy { FootballCatalog.continentOf(it.country) }
+        val matchesBy = favoriteMatches.groupBy(::matchContinent)
+
+        item {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.End) {
+                Text(
+                    "Edit favourites",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).bouncyClickable(onClick = onEditFavorites).padding(horizontal = 10.dp, vertical = 6.dp)
+                )
             }
         }
 
-        if (favoriteCompetitions.isNotEmpty()) {
-            item { SectionHeader("Competitions", Modifier.padding(horizontal = 16.dp)) }
-            item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(favoriteCompetitions, key = { it.id }) { comp ->
+        FootballCatalog.CONTINENT_ORDER.forEach { continent ->
+            val ts = teamsBy[continent].orEmpty()
+            val cs = compsBy[continent].orEmpty()
+            val ms = matchesBy[continent].orEmpty()
+            if (ts.isEmpty() && cs.isEmpty() && ms.isEmpty()) return@forEach
+            item(key = "head_$continent") {
+                Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 16.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(continent, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        "${ts.size + cs.size + ms.size}",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = 9.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            if (ts.isNotEmpty() || cs.isNotEmpty()) item(key = "chips_$continent") {
+                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(ts, key = { "t_${it.espnId}" }) { t ->
+                        SavedChip(t.name, t.logoUrl, round = true, onOpen = {}, onRemove = { onRemoveTeam(t.espnId) })
+                    }
+                    items(cs, key = { "c_${it.id}" }) { comp ->
                         SavedChip(comp.name, comp.logoUrl, round = false, onOpen = { onOpenLeague(comp.id) }, onRemove = { onToggleLeagueFavorite(comp.id) })
                     }
                 }
             }
-        }
-
-        if (favoriteMatches.isNotEmpty()) {
-            item { SectionHeader("Matches", Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)) }
-            itemsIndexed(favoriteMatches, key = { _, m -> m.id }) { i, match ->
+            itemsIndexed(ms, key = { _, m -> "m_${m.id}" }) { i, match ->
                 StandardMatchCard(
                     match = match,
                     onClick = { onMatchClick(match) },
                     onToggleFavorite = { onToggleMatchFavorite(match) },
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .animateItem()
-                        .staggeredEntrance(i)
+                    modifier = Modifier.padding(horizontal = 16.dp).animateItem().staggeredEntrance(i)
                 )
             }
         }

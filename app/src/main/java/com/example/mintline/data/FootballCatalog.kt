@@ -212,4 +212,40 @@ object FootballCatalog {
 
     private val teamsById = (clubs + nations).associateBy { it.espnId }
     fun teamById(id: String): TeamPick? = teamsById[id]
+
+    // ---------- continents (Saved tab grouping) ----------
+
+    val CONTINENT_ORDER = listOf("Europe", "Africa", "Asia", "South America", "North America", "Oceania", "International")
+
+    private val europe = setOf("Europe", "England", "Spain", "Italy", "Germany", "France", "Portugal", "Netherlands", "Belgium",
+        "Scotland", "Türkiye", "Turkey", "Switzerland", "Austria", "Greece", "Denmark", "Norway", "Sweden", "Russia", "Czechia",
+        "Romania", "Croatia", "Serbia", "Poland", "Ukraine")
+    private val africa = setOf("Africa", "Morocco", "Egypt", "Algeria", "Tunisia", "Libya", "Sudan", "Nigeria", "Ghana", "Senegal",
+        "Ivory Coast", "Cameroon", "South Africa", "South-Africa", "Kenya", "Angola", "Mali", "Mauritania", "Zambia", "Tanzania", "Uganda")
+    private val asia = setOf("Asia", "Saudi Arabia", "Qatar", "UAE", "United Arab Emirates", "Kuwait", "Bahrain", "Oman", "Iraq",
+        "Jordan", "Lebanon", "Syria", "Japan", "South Korea", "China", "India", "Israel", "Iran")
+    private val southAmerica = setOf("South America", "Brazil", "Argentina", "Uruguay", "Colombia", "Chile", "Peru", "Ecuador", "Paraguay")
+    private val northAmerica = setOf("North America", "USA", "United States", "Mexico", "Canada")
+
+    fun continentOf(country: String?): String = when (country?.trim()) {
+        null, "" -> "International"
+        in europe -> "Europe"
+        in africa -> "Africa"
+        in asia -> "Asia"
+        in southAmerica -> "South America"
+        in northAmerica -> "North America"
+        "Australia", "Oceania" -> "Oceania"
+        else -> "International"
+    }
+
+    private val clubCountry = mapOf(
+        "86" to "Spain", "83" to "Spain", "1068" to "Spain", "382" to "England", "364" to "England", "359" to "England",
+        "360" to "England", "363" to "England", "367" to "England", "132" to "Germany", "124" to "Germany", "160" to "France",
+        "111" to "Italy", "110" to "Italy", "103" to "Italy", "114" to "Italy", "139" to "Netherlands", "1929" to "Portugal",
+        "437" to "Portugal", "817" to "Saudi Arabia", "20232" to "USA",
+    )
+
+    /** Continent of a favourite team (clubs by their league country, nations by themselves). */
+    fun teamContinent(espnId: String): String =
+        clubCountry[espnId]?.let { continentOf(it) } ?: continentOf(nations.firstOrNull { it.espnId == espnId }?.name)
 }

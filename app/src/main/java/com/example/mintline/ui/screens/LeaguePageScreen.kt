@@ -75,6 +75,7 @@ fun LeaguePageScreen(
     tables: List<StandingGroup>,
     leaders: LeagueLeaders?,
     loading: Boolean,
+    bracket: com.example.mintline.model.Bracket? = null,
     favoriteTeamIds: Set<String>,
     onBack: () -> Unit,
     onShowMatches: () -> Unit,
@@ -133,12 +134,16 @@ fun LeaguePageScreen(
                     }
                 }
 
-                PillTabs(PageTabs, tab) { tab = it }
+                val tabs = if (bracket != null) PageTabs + "Bracket" else PageTabs
+                PillTabs(tabs, tab.coerceAtMost(tabs.lastIndex)) { tab = it }
 
                 AnimatedContent(targetState = tab, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "leagueTab") { t ->
                     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         when {
                             loading && tables.isEmpty() && leaders == null -> LoadingStateView(message = "Loading the table…")
+                            t == 3 && bracket != null -> Column(Modifier.fillMaxWidth().floatingCard(shape = RoundedCornerShape(32.dp)).padding(14.dp)) {
+                                com.example.mintline.ui.components.match.BracketView(bracket)
+                            }
                             t == 0 && tables.isEmpty() -> Empty("No table for this competition yet")
                             t == 0 -> tables.forEach { g ->
                                 Column(Modifier.fillMaxWidth().floatingCard(shape = RoundedCornerShape(32.dp)).padding(10.dp)) {

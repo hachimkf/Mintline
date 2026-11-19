@@ -246,6 +246,7 @@ fun MainScreen(
                         leagueId = id,
                         tables = state.leagueTables,
                         leaders = state.leagueLeaders,
+                        bracket = state.leagueBracket,
                         loading = state.leagueLoading,
                         favoriteTeamIds = state.favoriteTeamIds,
                         onBack = viewModel::closeLeague,
@@ -268,7 +269,8 @@ fun MainScreen(
                         detail = detail,
                         onBack = viewModel::closeMatchDetail,
                         onToggleFavorite = viewModel::toggleFavorite,
-                        onOpenPlayer = viewModel::openPlayer
+                        onOpenPlayer = viewModel::openPlayer,
+                        bracket = state.detailBracket
                     )
                 }
             }

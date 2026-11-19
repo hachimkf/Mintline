@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Player silhouette (head + shoulders) used when no photo is available -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="48dp" android:height="48dp" android:viewportWidth="48" android:viewportHeight="48">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M24,9.5c4.4,0 7.6,3.6 7.6,8.4s-3.2,9.3 -7.6,9.3s-7.6,-4.5 -7.6,-9.3s3.2,-8.4 7.6,-8.4z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M6,48c0.6,-9.4 7.7,-15.4 18,-15.4s17.4,6 18,15.4z" />
+</vector>

@@ -38,6 +38,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.Icon
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -139,43 +143,74 @@ private fun surname(name: String): String {
  * in, then players spring from the halfway line onto their spots, keeper first.
  * Tap a player to see their card below.
  */
+/** Player photo when the source has one (365Scores / API-Football line-ups); ESPN has none. */
+fun lineupPhotoUrl(player: LineupPlayer): String? = when {
+    player.id.startsWith("s365a_") ->
+        "https://imagecache.365scores.com/image/upload/f_png,w_120,h_120,c_limit,q_auto:eco,dpr_2,d_Athletes:default.png/v1/Athletes/${player.id.removePrefix("s365a_")}"
+    player.id.startsWith("af_p_") -> "https://media.api-sports.io/football/players/${player.id.removePrefix("af_p_")}.png"
+    else -> null
+}
+
+/**
+ * One team on a full pitch (switch with the Home / Away pills): markings draw
+ * themselves in, then players spring onto their spots. Each token shows the
+ * player's photo where available — otherwise a silhouette (women's for
+ * women's teams) — with a shirt-number pill, a stem and their name.
+ */
 @Composable
 fun PitchLineup(
     homeLineup: TeamLineup?,
     awayLineup: TeamLineup?,
     modifier: Modifier = Modifier,
+    women: Boolean = false,
     onOpenPlayer: (LineupPlayer, String) -> Unit = { _, _ -> },
 ) {
     val mint = Mint.colors
     val reduced = Mint.reducedMotion
-    val homeSlots = remember(homeLineup) { homeLineup?.let { layoutTeam(it, mirrored = false) } ?: emptyList() }
-    val awaySlots = remember(awayLineup) { awayLineup?.let { layoutTeam(it, mirrored = true) } ?: emptyList() }
-    var selected by remember { mutableStateOf<Pair<LineupPlayer, Boolean>?>(null) }
+    val scheme = MaterialTheme.colorScheme
+    var showHome by remember { mutableStateOf(homeLineup != null) }
+    val lineup = if (showHome) homeLineup else awayLineup
+    val slots = remember(lineup) { lineup?.let { layoutTeam(it, mirrored = false) } ?: emptyList() }
+    var selected by remember { mutableStateOf<LineupPlayer?>(null) }
+    val isWomen = women || lineup?.teamName?.let { it.endsWith("(W)") || it.contains("Women", true) } == true
 
     val linesProgress = remember { Animatable(if (reduced) 1f else 0f) }
-    val tokenAnims = remember(homeSlots, awaySlots) {
-        List(homeSlots.size + awaySlots.size) { Animatable(if (reduced) 1f else 0f) }
-    }
+    val tokenAnims = remember(slots) { List(slots.size) { Animatable(if (reduced) 1f else 0f) } }
     LaunchedEffect(tokenAnims) {
         if (reduced) return@LaunchedEffect
-        launch { linesProgress.animateTo(1f, tween(1100)) }
-        delay(350)
-        // interleave both teams so the pitch fills symmetrically
-        val order = (0 until maxOf(homeSlots.size, awaySlots.size)).flatMap { i ->
-            listOfNotNull(
-                i.takeIf { it < homeSlots.size },
-                (homeSlots.size + i).takeIf { i < awaySlots.size }
-            )
-        }
-        order.forEachIndexed { n, idx ->
+        launch { linesProgress.animateTo(1f, tween(1000)) }
+        delay(250)
+        tokenAnims.forEachIndexed { n, anim ->
             launch {
-                delay(n * 40L)
-                tokenAnims[idx].animateTo(1f, spring(dampingRatio = 0.55f, stiffness = 220f))
+                delay(n * 45L)
+                anim.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = 220f))
             }
         }
     }
 
     Column(modifier) {
+        // Home / Away switch
+        if (homeLineup != null && awayLineup != null) {
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(50)).background(scheme.surfaceContainerHigh).padding(4.dp)
+            ) {
+                listOf(true to homeLineup.teamName, false to awayLineup.teamName).forEach { (home, name) ->
+                    val sel = home == showHome
+                    Text(
+                        name,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (sel) scheme.onPrimary else scheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.weight(1f).clip(RoundedCornerShape(50))
+                            .background(if (sel) scheme.primary else Color.Transparent)
+                            .bouncyClickable(pressedScale = 0.94f) { showHome = home; selected = null }
+                            .padding(vertical = 10.dp)
+                    )
+                }
+            }
+        }
         BoxWithConstraints(
             Modifier
                 .fillMaxWidth()
@@ -190,35 +225,28 @@ fun PitchLineup(
 
             Box(Modifier.fillMaxWidth().height(h)) {
                 PitchCanvas(progress = linesProgress.value, modifier = Modifier.fillMaxSize())
+                Text(
+                    listOfNotNull(lineup?.teamName, lineup?.formation?.takeIf { it.isNotBlank() }).joinToString("  ·  "),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 22.dp)
+                )
 
                 val fieldW = wPx - inset * 2
-                val halfH = (hPx - inset * 2) / 2f
-                fun homePos(s: Slot) = Offset(inset + s.x * fieldW, hPx - inset - s.depth * halfH)
-                fun awayPos(s: Slot) = Offset(inset + s.x * fieldW, inset + s.depth * halfH)
-                val center = Offset(wPx / 2f, hPx / 2f)
-
-                homeSlots.forEachIndexed { i, s ->
+                val fieldH = hPx - inset * 2
+                // whole pitch for one team: keeper near the bottom goal, forwards up front
+                fun pos(s: Slot) = Offset(inset + s.x * fieldW, hPx - inset - (0.11f + (s.depth - 0.07f) / 0.72f * 0.74f) * fieldH)
+                slots.forEachIndexed { i, s ->
+                    val target = pos(s)
                     PlayerToken(
                         player = s.player,
-                        target = homePos(s),
-                        from = Offset(homePos(s).x, center.y + 20f),
+                        target = target,
+                        from = Offset(target.x, hPx / 2f),
                         progress = tokenAnims.getOrNull(i)?.value ?: 1f,
-                        fill = mint.home,
-                        onFill = mint.onHome,
-                        selected = selected?.first?.id == s.player.id,
-                        onClick = { selected = s.player to true }
-                    )
-                }
-                awaySlots.forEachIndexed { i, s ->
-                    PlayerToken(
-                        player = s.player,
-                        target = awayPos(s),
-                        from = Offset(awayPos(s).x, center.y - 20f),
-                        progress = tokenAnims.getOrNull(homeSlots.size + i)?.value ?: 1f,
-                        fill = mint.away,
-                        onFill = mint.onAway,
-                        selected = selected?.first?.id == s.player.id,
-                        onClick = { selected = s.player to false }
+                        ring = if (showHome) mint.home else mint.away,
+                        women = isWomen,
+                        selected = selected?.id == s.player.id,
+                        onClick = { selected = s.player }
                     )
                 }
             }
@@ -230,22 +258,20 @@ fun PitchLineup(
             label = "selectedPlayer"
         ) { sel ->
             if (sel != null) {
-                val team = if (sel.second) homeLineup?.teamName.orEmpty() else awayLineup?.teamName.orEmpty()
+                val team = lineup?.teamName.orEmpty()
                 SelectedPlayerCard(
-                    player = sel.first,
+                    player = sel,
                     teamName = team,
-                    color = if (sel.second) mint.home else mint.away,
-                    onColor = if (sel.second) mint.onHome else mint.onAway,
-                    modifier = Modifier.padding(top = 12.dp).bouncyClickable(pressedScale = 0.97f) { onOpenPlayer(sel.first, team) }
+                    color = if (showHome) mint.home else mint.away,
+                    onColor = if (showHome) mint.onHome else mint.onAway,
+                    modifier = Modifier.padding(top = 12.dp).bouncyClickable(pressedScale = 0.97f) { onOpenPlayer(sel, team) }
                 )
             } else {
                 Text(
                     "Tap a player for details",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
@@ -351,12 +377,12 @@ private fun PlayerToken(
     target: Offset,
     from: Offset,
     progress: Float,
-    fill: Color,
-    onFill: Color,
+    ring: Color,
+    women: Boolean,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val tokenSize = 25.dp
+    val tokenSize = 40.dp
     val tokenPx = with(LocalDensity.current) { tokenSize.toPx() }
     val selScale by animateFloatAsState(
         if (selected) 1.15f else 1f, spring(dampingRatio = 0.45f, stiffness = 500f), label = "sel"
@@ -364,6 +390,7 @@ private fun PlayerToken(
     val p = progress
     val x = from.x + (target.x - from.x) * p
     val y = from.y + (target.y - from.y) * p
+    val photo = remember(player.id) { lineupPhotoUrl(player) }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -371,17 +398,14 @@ private fun PlayerToken(
             .layout { measurable, constraints ->
                 val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
                 layout(constraints.maxWidth, constraints.maxHeight) {
-                    placeable.place(
-                        (x - placeable.width / 2f).roundToInt(),
-                        (y - tokenPx / 2f).roundToInt()
-                    )
+                    placeable.place((x - placeable.width / 2f).roundToInt(), (y - tokenPx / 2f).roundToInt())
                 }
             }
             .graphicsLayer {
                 alpha = p.coerceIn(0f, 1f)
                 val s = (0.4f + 0.6f * p) * selScale
                 scaleX = s; scaleY = s
-                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0.25f)
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0.2f)
             }
             .bouncyClickable(pressedScale = 0.85f, onClick = onClick)
     ) {
@@ -390,45 +414,65 @@ private fun PlayerToken(
                 Modifier
                     .size(tokenSize)
                     .clip(CircleShape)
-                    .background(fill)
-                    .border(1.5.dp, if (selected) Color.White else Color.White.copy(alpha = 0.85f), CircleShape),
-                contentAlignment = Alignment.Center
+                    .background(Color(0xFFE9ECE3))
+                    .border(2.dp, if (selected) ring else Color.White, CircleShape),
+                contentAlignment = Alignment.BottomCenter
             ) {
-                Text(
-                    player.jersey,
-                    color = onFill,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold
+                // silhouette underneath; the photo (if any) loads on top of it
+                Icon(
+                    painterResource(if (women) com.example.mintline.R.drawable.ic_player_female else com.example.mintline.R.drawable.ic_player_male),
+                    contentDescription = null,
+                    tint = ring.copy(alpha = 0.85f),
+                    modifier = Modifier.size(tokenSize * 0.86f)
                 )
+                if (photo != null) {
+                    AsyncImage(
+                        model = photo,
+                        contentDescription = player.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize()
+                    )
+                }
             }
+            // shirt number pill (top-left), captain badge (top-right)
+            Text(
+                player.jersey.ifBlank { "–" },
+                color = Color.White,
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .offset(x = (-8).dp, y = 2.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0xE6101010))
+                    .padding(horizontal = 4.dp, vertical = 1.dp)
+            )
             if (player.isCaptain) {
                 Box(
-                    Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = 4.dp, y = (-2).dp)
-                        .size(12.dp)
-                        .clip(CircleShape)
-                        .background(Mint.colors.gold)
-                        .border(1.dp, Color.White, CircleShape),
+                    Modifier.align(Alignment.TopEnd).offset(x = 3.dp, y = (-2).dp).size(13.dp)
+                        .clip(CircleShape).background(Mint.colors.gold).border(1.dp, Color.White, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("C", fontSize = 7.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3A2A00))
                 }
             }
         }
+        // stem + dot like a pin on the grass
+        Box(Modifier.width(1.5.dp).height(7.dp).background(Color.White.copy(alpha = 0.8f)))
+        Box(Modifier.size(4.dp).clip(CircleShape).background(Color.White))
         Spacer(Modifier.height(2.dp))
         Text(
             surname(player.name),
             color = Color.White,
-            fontSize = 8.5.sp,
+            fontSize = 9.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
-                .widthIn(max = 56.dp)
+                .widthIn(max = 64.dp)
                 .clip(RoundedCornerShape(50))
-                .background(Color.Black.copy(alpha = 0.40f))
-                .padding(horizontal = 4.dp, vertical = 1.dp)
+                .background(Color.Black.copy(alpha = 0.45f))
+                .padding(horizontal = 5.dp, vertical = 1.dp)
         )
     }
 }

@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.mintline"
         minSdk = 24
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.7"
+        versionCode = 9
+        versionName = "1.8"
 
         // Mintline API-Football proxy (see proxy/README.md). Set mintline.proxyUrl in
         // local.properties or as a Gradle property; empty disables Arab/African leagues.
@@ -25,6 +25,10 @@ android {
         val proxyUrl = (project.findProperty("mintline.proxyUrl") as String?)
             ?: localProps.getProperty("mintline.proxyUrl") ?: ""
         buildConfigField("String", "MINTLINE_PROXY_URL", "\"$proxyUrl\"")
+        // API-Football (API-Sports) key from git-ignored local.properties; empty disables the source
+        val apiFootballKey = (project.findProperty("apifootball.key") as String?)
+            ?: localProps.getProperty("apifootball.key") ?: ""
+        buildConfigField("String", "APIFOOTBALL_KEY", "\"$apiFootballKey\"")
     }
 
     // Release signing: credentials live in keystore.properties (git-ignored), not in this file.

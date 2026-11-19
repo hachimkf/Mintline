@@ -65,3 +65,19 @@ data class MatchInsights(
     val isEmpty: Boolean
         get() = homeForm.isEmpty() && awayForm.isEmpty() && headToHead.isEmpty() && table == null && performers.isEmpty()
 }
+
+/** Knockout draw: rounds from first knockout round to the final. */
+data class Bracket(val title: String, val rounds: List<BracketRound>)
+
+data class BracketRound(val name: String, val ties: List<BracketTie>)
+
+data class BracketTie(
+    val homeName: String,
+    val homeLogo: String?,
+    val awayName: String,
+    val awayLogo: String?,
+    val homeScore: String?,
+    val awayScore: String?,
+    val homeAdvanced: Boolean?,   // null = not decided yet
+    val note: String?,            // e.g. "After ET", "Pens", date
+)

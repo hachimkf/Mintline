@@ -55,6 +55,14 @@ class Scores365Client(
     private val internationalHints = listOf("arab", "caf", "african", "afcon", "gulf", "chan", "cosafa", "wafu", "cecafa")
 
     /** ESPN already has these top flights; skip them here to avoid duplicates. */
+    /** Competitions API-Football supplies when it's enabled (avoids showing them twice). */
+    private fun coveredByApiSports(country: String, competition: String): Boolean {
+        val c = competition.lowercase()
+        return (country == "morocco" && c.contains("botola pro")) ||
+            (country == "egypt" && c.contains("premier league")) ||
+            listOf("caf champions", "confederation cup", "africa cup of nations", "nations championship").any { c.contains(it) }
+    }
+
     private fun coveredByEspn(country: String, competition: String): Boolean {
         val c = competition.lowercase()
         return country == "saudi arabia" && (c.contains("saudi league") || c.contains("pro league"))
@@ -79,7 +87,7 @@ class Scores365Client(
         "https://imagecache.365scores.com/image/upload/f_png,w_64,h_64,c_limit,q_auto:eco,dpr_2,d_Countries:round:default.png/v$v/Competitions/light/$id"
 
     /** @param dateString yyyyMMdd (the app's date format); null = today in [zone]. */
-    suspend fun fetchFixtures(dateString: String?, zone: ZoneId): Result<List<Match>> = withContext(Dispatchers.IO) {
+    suspend fun fetchFixtures(dateString: String?, zone: ZoneId, skipApiSportsLeagues: Boolean = false): Result<List<Match>> = withContext(Dispatchers.IO) {
         runCatching {
             val day = dateString?.takeIf { it.length == 8 }
                 ?.let { LocalDate.parse(it, DateTimeFormatter.BASIC_ISO_DATE) } ?: LocalDate.now(zone)
@@ -101,6 +109,7 @@ class Scores365Client(
                     else countrySlug in wantedCountries
                 val youth = Regex("\\bu\\s?\\d{2}\\b|youth|reserve|junior").containsMatchIn(compSlug)
                 if (!keep || youth || coveredByEspn(countrySlug, compSlug)) return@mapNotNull null
+                if (skipApiSportsLeagues && coveredByApiSports(countrySlug, compSlug)) return@mapNotNull null
                 parseGame(g, comp, countryName, international, zone)
             }
         }
@@ -118,7 +127,12 @@ class Scores365Client(
                 val match = parseGame(g, comp, "", false, zone) ?: error("Bad game")
                 val homeId = g.optJSONObject("homeCompetitor")?.optInt("id")
                 val members = g.optJSONArray("members").byId()
+                val homeTeamId = "s365_$homeId"
+                val awayTeamId = "s365_${g.optJSONObject("awayCompetitor")?.optInt("id")}"
+                val table = standings(g.optInt("competitionId")).getOrNull()
+                    ?.firstOrNull { grp -> grp.rows.any { it.row.team.id == homeTeamId || it.row.team.id == awayTeamId } }
                 MatchDetail(
+                    insights = table?.let { com.example.mintline.model.MatchInsights(table = it) },
                     match = match.copy(venue = g.optJSONObject("venue")?.optString("name")?.takeIf { it.isNotBlank() } ?: match.venue),
                     incidents = parseEvents(g.optJSONArray("events"), homeId, members),
                     statistics = parseStats(stats?.optJSONArray("statistics"), homeId),
@@ -278,6 +292,81 @@ class Scores365Client(
             starters = starters,
             bench = all.filter { it.optInt("status") == 2 }.map { toPlayer(it, true) },
         )
+    }
+
+    // ---------- tables & knockout brackets ----------
+
+    private val competitionIdCache = mutableMapOf<String, Int?>()
+
+    /** 365Scores competition ID for a league name (memoised; search is free). */
+    suspend fun competitionIdFor(name: String): Int? = withContext(Dispatchers.IO) {
+        competitionIdCache.getOrPut(name.lowercase()) {
+            runCatching {
+                val q = java.net.URLEncoder.encode(name, "UTF-8")
+                val comps = get("$base/search/?${params(ZoneId.of("UTC"))}&query=$q").optJSONArray("competitions") ?: return@runCatching null
+                val list = (0 until comps.length()).map { comps.getJSONObject(it) }.filter { it.optInt("sportId", 1) == 1 }
+                (list.firstOrNull { it.optString("name").equals(name, true) } ?: list.firstOrNull())?.optInt("id")
+            }.getOrNull()
+        }
+    }
+
+    /** League table(s) for a 365Scores competition. */
+    suspend fun standings(competitionId: Int): Result<List<com.example.mintline.model.StandingGroup>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val arr = get("$base/standings/?${params(ZoneId.of("UTC"))}&competitions=$competitionId").optJSONArray("standings") ?: JSONArray()
+            (0 until arr.length()).mapNotNull { gi ->
+                val st = arr.getJSONObject(gi)
+                val rows = st.optJSONArray("rows") ?: return@mapNotNull null
+                val list = (0 until rows.length()).map { rows.getJSONObject(it) }.map { r ->
+                    val c = r.optJSONObject("competitor") ?: JSONObject()
+                    com.example.mintline.model.TableRow(
+                        row = com.example.mintline.model.StandingRow(
+                            rank = r.optInt("position"),
+                            team = Team("s365_${c.optInt("id")}", c.optString("name"), c.optString("name"),
+                                c.optString("symbolicName"), teamLogo(c.optInt("id"), c.optInt("imageVersion", 1))),
+                            played = r.optInt("gamePlayed"), won = r.optInt("gamesWon"),
+                            drawn = r.optInt("gamesEven"), lost = r.optInt("gamesLost"),
+                            goalsFor = r.optDouble("for").toInt(), goalsAgainst = r.optDouble("against").toInt(),
+                            goalDifference = (r.optDouble("for") - r.optDouble("against")).toInt(),
+                            points = r.optDouble("points").toInt(),
+                        )
+                    )
+                }
+                if (list.isEmpty()) null else com.example.mintline.model.StandingGroup(st.optString("displayName").ifBlank { st.optString("groupName") }, list)
+            }
+        }
+    }
+
+    /** Knockout bracket (group stages skipped) or null when the competition has none. */
+    suspend fun bracket(competitionId: Int): Result<com.example.mintline.model.Bracket?> = withContext(Dispatchers.IO) {
+        runCatching {
+            val b = get("$base/brackets/?${params(ZoneId.of("UTC"))}&competitions=$competitionId")
+                .optJSONArray("brackets")?.optJSONObject(0) ?: return@runCatching null
+            val stages = b.optJSONArray("stages") ?: return@runCatching null
+            val rounds = (0 until stages.length()).map { stages.getJSONObject(it) }.mapNotNull { st ->
+                val groups = st.optJSONArray("groups") ?: return@mapNotNull null
+                val ties = (0 until groups.length()).map { groups.getJSONObject(it) }.mapNotNull { g ->
+                    val parts = g.optJSONArray("participants") ?: return@mapNotNull null // group-stage tables have none
+                    if (parts.length() < 2) return@mapNotNull null
+                    val p1 = parts.getJSONObject(0); val p2 = parts.getJSONObject(1)
+                    val game = g.optJSONArray("games")?.optJSONObject(0)?.optJSONObject("game")
+                    fun score(o: JSONObject?) = o?.optDouble("score", -1.0)?.takeIf { it >= 0 }?.toInt()?.toString()
+                    val hc = game?.optJSONObject("homeCompetitor"); val ac = game?.optJSONObject("awayCompetitor")
+                    val homeIsP1 = hc == null || hc.optInt("id") == p1.optInt("competitorId")
+                    val q1 = p1.optBoolean("isQualified"); val q2 = p2.optBoolean("isQualified")
+                    com.example.mintline.model.BracketTie(
+                        homeName = p1.optString("name"), homeLogo = p1.optInt("competitorId").takeIf { it > 0 }?.let { teamLogo(it, 1) },
+                        awayName = p2.optString("name"), awayLogo = p2.optInt("competitorId").takeIf { it > 0 }?.let { teamLogo(it, 1) },
+                        homeScore = score(if (homeIsP1) hc else ac), awayScore = score(if (homeIsP1) ac else hc),
+                        homeAdvanced = if (q1 || q2) q1 else null,
+                        note = game?.optString("shortStatusText")?.takeIf { it.isNotBlank() && it != "Ended" && it != "FT" }
+                            ?: game?.optString("startTime")?.take(10)?.takeIf { game.optInt("statusGroup") != 4 },
+                    )
+                }
+                if (ties.isEmpty()) null else com.example.mintline.model.BracketRound(st.optString("name"), ties)
+            }
+            if (rounds.isEmpty()) null else com.example.mintline.model.Bracket(b.optString("name"), rounds)
+        }
     }
 
     private fun JSONArray?.byId(): Map<Int, JSONObject> {
